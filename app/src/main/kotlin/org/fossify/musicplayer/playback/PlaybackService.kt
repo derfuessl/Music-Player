@@ -27,6 +27,7 @@ class PlaybackService : MediaLibraryService(), MediaSessionService.Listener {
     internal lateinit var playerListener: Player.Listener
     internal lateinit var mediaSession: MediaLibrarySession
     internal lateinit var mediaItemProvider: MediaItemProvider
+    internal lateinit var stopDance: StopDancePlayer
 
     internal var currentRoot = ""
 
@@ -34,6 +35,7 @@ class PlaybackService : MediaLibraryService(), MediaSessionService.Listener {
         super.onCreate()
         setListener(this)
         initializeSessionAndPlayer(handleAudioFocus = true, handleAudioBecomingNoisy = true)
+        withPlayer { stopDance = StopDancePlayer(this) }
         initializeLibrary()
     }
 
@@ -49,6 +51,7 @@ class PlaybackService : MediaLibraryService(), MediaSessionService.Listener {
 
     fun stopService() {
         withPlayer {
+            stopDance.controller.stop()
             pause()
             stop()
         }
@@ -68,6 +71,7 @@ class PlaybackService : MediaLibraryService(), MediaSessionService.Listener {
     private fun releaseMediaSession() {
         mediaSession.release()
         withPlayer {
+            stopDance.release()
             removeListener(playerListener)
             release()
         }

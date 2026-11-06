@@ -14,11 +14,17 @@ enum class CustomCommands(val customAction: String) {
     RELOAD_CONTENT(customAction = PATH + "RELOAD_CONTENT"),
     TOGGLE_SLEEP_TIMER(customAction = PATH + "TOGGLE_SLEEP_TIMER"),
     SET_NEXT_ITEM(customAction = PATH + "SET_NEXT_ITEM"),
-    SET_SHUFFLE_ORDER(customAction = PATH + "SET_SHUFFLE_ORDER");
+    SET_SHUFFLE_ORDER(customAction = PATH + "SET_SHUFFLE_ORDER"),
+    START_STOP_DANCE(customAction = PATH + "START_STOP_DANCE"),
+    STOP_STOP_DANCE(customAction = PATH + "STOP_STOP_DANCE");
 
     val sessionCommand = SessionCommand(customAction, Bundle.EMPTY)
 
     companion object {
+        const val MIN_PLAY_SECONDS = "min_play_seconds"
+        const val MAX_PLAY_SECONDS = "max_play_seconds"
+        const val PAUSE_SECONDS = "pause_seconds"
+
         fun fromSessionCommand(sessionCommand: SessionCommand): CustomCommands? {
             return values().find { it.customAction == sessionCommand.customAction }
         }

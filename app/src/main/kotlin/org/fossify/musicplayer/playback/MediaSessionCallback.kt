@@ -81,6 +81,33 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
             CustomCommands.TOGGLE_SLEEP_TIMER -> toggleSleepTimer()
             CustomCommands.SET_SHUFFLE_ORDER -> setShuffleOrder(args)
             CustomCommands.SET_NEXT_ITEM -> setNextItem(args)
+            CustomCommands.START_STOP_DANCE, CustomCommands.STOP_STOP_DANCE -> {
+                val result = SettableFuture.create<SessionResult>()
+                // Copy IPC input before dispatch. Invalid/missing values never change an active run.
+                val settings = if (command == CustomCommands.START_STOP_DANCE) {
+                    try {
+                        StopDanceController.Settings(
+                            args.getInt(CustomCommands.MIN_PLAY_SECONDS),
+                            args.getInt(CustomCommands.MAX_PLAY_SECONDS),
+                            args.getInt(CustomCommands.PAUSE_SECONDS)
+                        )
+                    } catch (e: IllegalArgumentException) {
+                        return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
+                    }
+                } else null
+                withPlayer {
+                    val code = if (settings == null) {
+                        stopDance.controller.stop()
+                        SessionResult.RESULT_SUCCESS
+                    } else if (stopDance.controller.start(settings)) {
+                        SessionResult.RESULT_SUCCESS
+                    } else {
+                        SessionError.ERROR_INVALID_STATE
+                    }
+                    result.set(SessionResult(code))
+                }
+                return result
+            }
         }
 
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))

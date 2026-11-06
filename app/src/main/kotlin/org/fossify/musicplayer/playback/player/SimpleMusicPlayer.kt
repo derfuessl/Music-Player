@@ -18,6 +18,25 @@ private const val DEFAULT_SHUFFLE_ORDER_SEED = 42L
 
 @UnstableApi
 class SimpleMusicPlayer(private val exoPlayer: ExoPlayer) : ForwardingPlayer(exoPlayer) {
+    // A repeated pause during a dance pause does not change Player state and produces no event.
+    // Report the request itself so notification/headset/session controls can still cancel resume.
+    // The service adapter suppresses this callback for its own timed pauses and clears it on release.
+    internal var onPauseOrStopRequested: (() -> Unit)? = null
+
+    override fun pause() {
+        onPauseOrStopRequested?.invoke()
+        super.pause()
+    }
+
+    override fun setPlayWhenReady(playWhenReady: Boolean) {
+        if (!playWhenReady) onPauseOrStopRequested?.invoke()
+        super.setPlayWhenReady(playWhenReady)
+    }
+
+    override fun stop() {
+        onPauseOrStopRequested?.invoke()
+        super.stop()
+    }
 
     /**
      * The default implementation only advertises the seek to next and previous item in the case
