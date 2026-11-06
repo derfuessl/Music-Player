@@ -21,6 +21,7 @@ class ManageVisibleTabsDialog(val activity: BaseSimpleActivity, val callback: (r
             put(TAB_ALBUMS, binding.manageVisibleTabsAlbums)
             put(TAB_TRACKS, binding.manageVisibleTabsTracks)
             put(TAB_GENRES, binding.manageVisibleTabsGenres)
+            put(TAB_STOP_DANCE, binding.manageVisibleTabsStopDance)
         }
 
         val showTabs = activity.config.showTabs

@@ -115,8 +115,29 @@ class Config(context: Context) : BaseConfig(context) {
             .apply()
 
     var showTabs: Int
-        get() = prefs.getInt(SHOW_TABS, ALL_TABS_MASK)
+        get() {
+            // Introduce the new tab once, preserving every existing tab choice. Persist the
+            // migration marker so explicitly hiding Stop Dance later remains respected.
+            if (!prefs.getBoolean("stop_dance_tab_added", false)) {
+                val tabs = prefs.getInt(SHOW_TABS, ALL_TABS_MASK) or TAB_STOP_DANCE
+                prefs.edit().putInt(SHOW_TABS, tabs).putBoolean("stop_dance_tab_added", true).apply()
+                return tabs
+            }
+            return prefs.getInt(SHOW_TABS, ALL_TABS_MASK)
+        }
         set(showTabs) = prefs.edit().putInt(SHOW_TABS, showTabs).apply()
+
+    var stopDanceMinSeconds: Int
+        get() = prefs.getInt("stop_dance_min_seconds", 10)
+        set(value) = prefs.edit().putInt("stop_dance_min_seconds", value).apply()
+
+    var stopDanceMaxSeconds: Int
+        get() = prefs.getInt("stop_dance_max_seconds", 30)
+        set(value) = prefs.edit().putInt("stop_dance_max_seconds", value).apply()
+
+    var stopDancePauseSeconds: Int
+        get() = prefs.getInt("stop_dance_pause_seconds", 5)
+        set(value) = prefs.edit().putInt("stop_dance_pause_seconds", value).apply()
 
     var excludedFolders: MutableSet<String>
         get() = prefs.getStringSet(EXCLUDED_FOLDERS, HashSet())!!

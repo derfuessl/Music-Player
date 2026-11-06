@@ -160,4 +160,20 @@ class StopDanceControllerTest {
         scheduler.fire()
         assertEquals(Int.MAX_VALUE.toLong() * 1000, scheduler.tasks.last().delay)
     }
+
+    @Test fun reportedSettingsFollowAcceptedStartAndSurviveStop() {
+        controller.start(settings)
+        assertEquals(settings, controller.currentSettings)
+        scheduler.fire()
+        assertEquals(settings, controller.currentSettings)
+        controller.stop()
+        assertEquals(settings, controller.currentSettings)
+    }
+
+    @Test fun rejectedStartDoesNotChangeReportedSettings() {
+        controller.start(settings)
+        playback.canStart = false
+        assertFalse(controller.start(settings.copy(pauseSeconds = 9)))
+        assertEquals(settings, controller.currentSettings)
+    }
 }

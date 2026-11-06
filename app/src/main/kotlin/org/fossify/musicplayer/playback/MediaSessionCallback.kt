@@ -76,6 +76,11 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
             ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
 
         when (command) {
+            CustomCommands.GET_STOP_DANCE_STATE -> {
+                val result = SettableFuture.create<SessionResult>()
+                withPlayer { result.set(SessionResult(SessionResult.RESULT_SUCCESS, stopDance.stateExtras())) }
+                return result
+            }
             CustomCommands.CLOSE_PLAYER -> stopService()
             CustomCommands.RELOAD_CONTENT -> reloadContent()
             CustomCommands.TOGGLE_SLEEP_TIMER -> toggleSleepTimer()
@@ -104,7 +109,7 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
                     } else {
                         SessionError.ERROR_INVALID_STATE
                     }
-                    result.set(SessionResult(code))
+                    result.set(SessionResult(code, stopDance.stateExtras()))
                 }
                 return result
             }

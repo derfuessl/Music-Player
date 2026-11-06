@@ -136,6 +136,7 @@ class MainActivity : SimpleMusicActivity() {
         binding.mainMenu.requireToolbar().menu.apply {
             val tab = getVisibleTabs()[position]
             val isPlaylistFragment = tab == TAB_PLAYLISTS
+            findItem(R.id.sort).isVisible = tab != TAB_STOP_DANCE
             findItem(R.id.create_new_playlist).isVisible = isPlaylistFragment
             findItem(R.id.create_playlist_from_folder).isVisible = isPlaylistFragment
             findItem(R.id.import_playlist).isVisible = isPlaylistFragment
@@ -297,6 +298,7 @@ class MainActivity : SimpleMusicActivity() {
             TAB_ARTISTS -> org.fossify.commons.R.drawable.ic_person_vector
             TAB_ALBUMS -> R.drawable.ic_album_vector
             TAB_GENRES -> R.drawable.ic_genre_vector
+            TAB_STOP_DANCE -> R.drawable.ic_stop_dance_vector
             else -> R.drawable.ic_music_note_vector
         }
 
@@ -310,6 +312,7 @@ class MainActivity : SimpleMusicActivity() {
             TAB_ARTISTS -> R.string.artists
             TAB_ALBUMS -> R.string.albums
             TAB_GENRES -> R.string.genres
+            TAB_STOP_DANCE -> R.string.stop_dance
             else -> R.string.tracks
         }
 

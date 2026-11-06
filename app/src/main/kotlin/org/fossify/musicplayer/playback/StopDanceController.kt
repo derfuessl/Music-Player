@@ -42,6 +42,8 @@ internal class StopDanceController(
     var phase = Phase.STOPPED
         private set
     private var settings = Settings(10, 30, 5)
+    // Read only on the owning player thread; the service serializes this for remote UI clients.
+    val currentSettings: Settings get() = settings
     private var cancelPending: (() -> Unit)? = null
     private var generation = 0L
     private var pausedSnapshot: Any? = null

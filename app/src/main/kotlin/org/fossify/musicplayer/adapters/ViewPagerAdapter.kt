@@ -29,6 +29,7 @@ class ViewPagerAdapter(val activity: SimpleActivity) : PagerAdapter() {
             TAB_ALBUMS -> FragmentAlbumsBinding.inflate(layoutInflater, container, false).root
             TAB_TRACKS -> FragmentTracksBinding.inflate(layoutInflater, container, false).root
             TAB_GENRES -> FragmentGenresBinding.inflate(layoutInflater, container, false).root
+            TAB_STOP_DANCE -> FragmentStopDanceBinding.inflate(layoutInflater, container, false).root
             else -> throw IllegalArgumentException("Unknown tab: $tab")
         }
 

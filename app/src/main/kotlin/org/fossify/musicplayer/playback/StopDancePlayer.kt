@@ -1,6 +1,7 @@
 package org.fossify.musicplayer.playback
 
 import android.os.Handler
+import android.os.Bundle
 import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -18,18 +19,36 @@ import org.fossify.musicplayer.playback.player.SimpleMusicPlayer
 internal class StopDancePlayer(private val player: SimpleMusicPlayer) : Player.Listener {
     private val handler = Handler(player.applicationLooper)
     private var internalChange = false
-    private data class Position(val item: MediaItem?, val index: Int, val positionMs: Long)
+    private var positionRevision = 0L
+    private data class Position(val item: MediaItem?, val index: Int, val revision: Long)
+
+    private val canStart: Boolean
+        get() = player.currentMediaItem != null && player.playerError == null &&
+            player.playbackState == Player.STATE_READY &&
+            player.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE
+
+    /** Atomic snapshot for the UI. This method is called only through the service's player thread. */
+    fun stateExtras() = Bundle().apply {
+        putString(CustomCommands.STOP_DANCE_PHASE, controller.phase.name)
+        putBoolean(CustomCommands.STOP_DANCE_CAN_START, canStart)
+        putBoolean(CustomCommands.STOP_DANCE_IS_PLAYING, player.isPlaying)
+        putInt(CustomCommands.MIN_PLAY_SECONDS, controller.currentSettings.minPlaySeconds)
+        putInt(CustomCommands.MAX_PLAY_SECONDS, controller.currentSettings.maxPlaySeconds)
+        putInt(CustomCommands.PAUSE_SECONDS, controller.currentSettings.pauseSeconds)
+    }
 
     val controller = StopDanceController(
         object : StopDanceController.Playback {
             override val canStart: Boolean
                 // Phase 1 controls an already prepared queue. It never loads a playlist or
                 // implicitly restarts an ended track; callers must select/prepare media first.
-                get() = player.currentMediaItem != null && player.playerError == null &&
-                    player.playbackState == Player.STATE_READY &&
-                    player.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE
+                get() = this@StopDancePlayer.canStart
             override val isPlaying get() = player.isPlaying
-            override fun snapshot(): Any = Position(player.currentMediaItem, player.currentMediaItemIndex, player.currentPosition)
+            // ExoPlayer may refine currentPosition after pause() as its playback thread catches up.
+            // Comparing raw milliseconds would treat that normal settling as a user seek and end
+            // the game on its first pause. Track actual position discontinuities instead. We never
+            // seek ourselves: the prepared Player retains the audio position during each pause.
+            override fun snapshot(): Any = Position(player.currentMediaItem, player.currentMediaItemIndex, positionRevision)
             override fun play() = changePlayer { player.play() }
             override fun pause() = changePlayer { player.pause() }
         },
@@ -93,6 +112,13 @@ internal class StopDancePlayer(private val player: SimpleMusicPlayer) : Player.L
     }
 
     override fun onEvents(player: Player, events: Player.Events) = controller.onPositionChanged()
+
+    override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+        // Even a seek to nearly the same millisecond invalidates a paused run. Natural track
+        // transitions during music remain allowed because the controller checks only while paused.
+        positionRevision++
+        controller.onPositionChanged()
+    }
 
     fun release() {
         // Invalidate scheduled work before detaching listeners or releasing the underlying player.

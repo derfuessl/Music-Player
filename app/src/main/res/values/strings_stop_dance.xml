@@ -1,0 +1,24 @@
+<resources>
+    <string name="stop_dance">Stop Dance</string>
+    <string name="stop_dance_intro">Dance while the music plays. Freeze when it pauses!</string>
+    <string name="stop_dance_source">Uses your current song and playback queue. Choose music in another tab first.</string>
+    <string name="stop_dance_min">Music: minimum (seconds)</string>
+    <string name="stop_dance_max">Music: maximum (seconds)</string>
+    <string name="stop_dance_pause">Pause (seconds)</string>
+    <string name="stop_dance_start">Start</string>
+    <string name="stop_dance_stop">Stop</string>
+    <string name="stop_dance_connecting">Connecting to the player…</string>
+    <string name="stop_dance_ready">Ready to dance</string>
+    <string name="stop_dance_choose_music">Select and play a song first</string>
+    <string name="stop_dance_playing">Dance!</string>
+    <string name="stop_dance_paused">Freeze!</string>
+    <string name="stop_dance_waiting">Waiting for playback…</string>
+    <string name="stop_dance_stopped_hint">Stop Dance is off. Start begins a new round.</string>
+    <string name="stop_dance_playing_hint">The music will pause automatically.</string>
+    <string name="stop_dance_paused_hint">Stay still. The same song will resume at the same position.</string>
+    <string name="stop_dance_stop_hint">Stop ends the game and pauses the music. Changing tabs keeps the game running.</string>
+    <string name="stop_dance_positive_seconds">Enter a valid whole number of seconds greater than zero.</string>
+    <string name="stop_dance_invalid_range">Maximum must be at least the minimum.</string>
+    <string name="stop_dance_failed">Could not start. Select a song and wait until it is ready.</string>
+    <string name="stop_dance_disconnected">Player unavailable. Reopen the app to reconnect.</string>
+</resources>
