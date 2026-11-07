@@ -10,10 +10,9 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
-import com.google.gson.Gson
 import org.fossify.musicplayer.R
 import org.fossify.musicplayer.activities.PlaylistWidgetSelectionActivity
-import org.fossify.musicplayer.activities.TracksActivity
+import org.fossify.musicplayer.activities.PlaylistWidgetActionActivity
 import org.fossify.musicplayer.extensions.audioHelper
 import org.fossify.musicplayer.models.Playlist
 
@@ -33,8 +32,9 @@ class PlaylistListWidget : AppWidgetProvider() {
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
             views.setOnClickPendingIntent(R.id.widget_playlist_choose, PendingIntent.getActivity(context, id, configure,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-            // Only this explicit TracksActivity template accepts the row's playlist extra.
-            val open = Intent(context, TracksActivity::class.java).setData(identity)
+            // A collection has one template. Its two child targets supply the playlist ID and
+            // desired action; the component stays pinned to our private widget entry point.
+            val open = Intent(context, PlaylistWidgetActionActivity::class.java).setData(identity)
             val mutable = if (android.os.Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
             views.setPendingIntentTemplate(R.id.widget_playlist_rows, PendingIntent.getActivity(context, id, open,
                 PendingIntent.FLAG_UPDATE_CURRENT or mutable))
@@ -85,7 +85,10 @@ class PlaylistListService : RemoteViewsService() {
                     val art = PlaylistArtwork.loadPlaylist(applicationContext, playlist.id)
                     if (art == null) setImageViewResource(R.id.widget_playlist_picture, R.drawable.ic_playlist_vector)
                     else setImageViewBitmap(R.id.widget_playlist_picture, Bitmap.createScaledBitmap(art, 96, 96, true))
-                    setOnClickFillInIntent(R.id.widget_playlist_row, Intent().putExtra(PLAYLIST, Gson().toJson(playlist)))
+                    val open = Intent().putExtra(PLAYLIST, playlist.id)
+                    setOnClickFillInIntent(R.id.widget_playlist_name, open)
+                    setOnClickFillInIntent(R.id.widget_playlist_picture, Intent(open).putExtra(PlaylistWidgetActionActivity.PLAY, true))
+                    setContentDescription(R.id.widget_playlist_picture, getString(R.string.widget_play_named_playlist, playlist.title))
                 }
             }
         }
