@@ -15,7 +15,7 @@ import android.graphics.Color
 import android.view.View
 import androidx.core.graphics.ColorUtils
 import org.fossify.musicplayer.activities.PlaylistWidgetActionActivity
-import org.fossify.musicplayer.extensions.audioHelper
+import org.fossify.musicplayer.extensions.playlistDAO
 import org.fossify.musicplayer.models.Playlist
 
 /** Each home-screen instance owns its selection. A missing preference means automatic selection. */
@@ -91,8 +91,11 @@ class PlaylistListService : RemoteViewsService() {
             override fun onDestroy() { items = emptyList() }
             override fun onDataSetChanged() {
                 val selected = PlaylistListWidget.preferences(this@PlaylistListService).getStringSet(widgetId.toString(), null)
-                items = audioHelper.getAllPlaylists().sortedWith(compareBy({ it.title.lowercase() }, { it.id }))
-                    .filter { selected == null || it.id.toString() in selected }.take(PlaylistListWidget.LIMIT)
+                items = when {
+                    selected == null -> playlistDAO.widgetPlaylists(PlaylistListWidget.LIMIT)
+                    selected.isEmpty() -> emptyList()
+                    else -> playlistDAO.widgetPlaylistsById(selected.mapNotNull(String::toIntOrNull), PlaylistListWidget.LIMIT)
+                }
             }
             override fun getCount() = items.size
             override fun getViewTypeCount() = 1

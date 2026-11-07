@@ -13,4 +13,6 @@
     <string name="widget_transparency_label">Transparency</string>
     <string name="widget_show_title">Show heading</string>
     <string name="widget_playlist_tiles">Playlist tiles</string>
+    <string name="widget_search">Search playlists</string>
+    <string name="widget_search_empty">No matching playlists</string>
 </resources>
