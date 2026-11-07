@@ -47,7 +47,9 @@ object PlaylistArtwork {
     private val generation = AtomicLong()
     private val filesLock = Any()
     private val cache = object : LruCache<String, CachedImage>(12 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: CachedImage) = value.bitmap?.allocationByteCount ?: 1
+        // A missing picture still retains a map entry and its key. Account for those bytes,
+        // otherwise millions of misses could fit into the nominal 12 MiB budget.
+        override fun sizeOf(key: String, value: CachedImage) = 128 + 2 * key.length + (value.bitmap?.allocationByteCount ?: 0)
     }
 
     fun invalidate() {
@@ -195,7 +197,15 @@ object PlaylistArtwork {
         } } catch (ignored: Exception) { null }
         if (custom != null) return custom
         val tracks = context.audioHelper.getPlaylistTracks(playlistId).sortedWith(compareBy({ it.mediaStoreId }, { it.path }))
-        val key = "$epoch:playlist:$playlistId:${tracks.joinToString("|") { trackKey(it) }}"
+        // Hash the track metadata incrementally. A cached playlist key should occupy the same
+        // space whether it describes ten songs or ten thousand. NUL separates filesystem paths.
+        val digest = MessageDigest.getInstance("SHA-256")
+        for (track in tracks) {
+            if (Thread.currentThread().isInterrupted) return null
+            digest.update(trackKey(track).toByteArray(Charsets.UTF_8))
+            digest.update(0.toByte())
+        }
+        val key = "$epoch:playlist:$playlistId:${android.util.Base64.encodeToString(digest.digest(), android.util.Base64.NO_WRAP)}"
         cache.get(key)?.let { return it.bitmap }
         val images = CoverMosaic.firstDistinct(tracks.asSequence().takeWhile { !Thread.currentThread().isInterrupted }
             .mapNotNull { loadTrack(context, it) }) { fingerprint(it) }
