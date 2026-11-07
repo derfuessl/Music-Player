@@ -90,7 +90,9 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         panel.addView(empty)
         val list = ListView(this)
         panel.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
-        list.addHeaderView(column, null, false)
+        // ListView measures a header even if its root is GONE. A wrapping frame collapses
+        // to zero height when we hide its child, placing the first match beneath the search.
+        list.addHeaderView(FrameLayout(this).apply { addView(column) }, null, false)
         val colorButton = Button(this)
         fun displayColor() {
             colorButton.setText(R.string.widget_panel_color)
