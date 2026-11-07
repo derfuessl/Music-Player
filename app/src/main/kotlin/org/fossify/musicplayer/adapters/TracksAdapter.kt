@@ -24,6 +24,7 @@ import org.fossify.musicplayer.extensions.config
 import org.fossify.musicplayer.extensions.getTrackCoverArt
 import org.fossify.musicplayer.helpers.ALL_TRACKS_PLAYLIST_ID
 import org.fossify.musicplayer.helpers.PLAYER_SORT_BY_CUSTOM
+import org.fossify.musicplayer.helpers.PlaylistArtwork
 import org.fossify.musicplayer.inlines.indexOfFirstOrNull
 import org.fossify.musicplayer.models.Events
 import org.fossify.musicplayer.models.Playlist
@@ -203,13 +204,24 @@ class TracksAdapter(
             }
 
             trackDuration.text = track.duration.getFormattedDuration()
-            activity.getTrackCoverArt(track) { coverArt ->
-                loadImage(trackImage, coverArt, placeholderBig)
+            if (isPlaylistContent()) {
+                // Songs on the same album can each have their own embedded picture. Resolve
+                // the file first, just as the playlist collage and its cover picker do.
+                PlaylistArtwork.displayTrack(trackImage, track, placeholderBig)
+            } else {
+                activity.getTrackCoverArt(track) { coverArt ->
+                    loadImage(trackImage, coverArt, placeholderBig)
+                }
             }
 
             trackImage.beVisible()
             trackId.beGone()
         }
+    }
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        if (isPlaylistContent()) PlaylistArtwork.cancel(ItemTrackBinding.bind(holder.itemView).trackImage)
+        super.onViewRecycled(holder)
     }
 
     override fun onChange(position: Int): String {
