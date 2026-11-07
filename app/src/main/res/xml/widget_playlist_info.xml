@@ -1,5 +1,7 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="110dp" android:minHeight="150dp" android:minResizeWidth="110dp" android:minResizeHeight="150dp"
-    android:targetCellWidth="2" android:targetCellHeight="3" android:resizeMode="horizontal|vertical"
+    android:configure="org.fossify.musicplayer.activities.PlaylistWidgetSelectionActivity"
+    android:widgetFeatures="reconfigurable"
+    android:minWidth="110dp" android:minHeight="48dp" android:minResizeWidth="110dp" android:minResizeHeight="48dp"
+    android:targetCellWidth="2" android:targetCellHeight="1" android:resizeMode="horizontal|vertical"
     android:initialLayout="@layout/widget_playlist_list" android:previewLayout="@layout/widget_playlist_list"
     android:updatePeriodMillis="1800000" android:widgetCategory="home_screen" />
