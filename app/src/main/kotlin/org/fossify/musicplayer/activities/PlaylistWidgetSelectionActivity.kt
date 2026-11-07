@@ -12,6 +12,7 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.musicplayer.R
 import org.fossify.musicplayer.extensions.audioHelper
 import org.fossify.musicplayer.helpers.PlaylistListWidget
+import org.fossify.musicplayer.helpers.PlaylistTileWidget
 import org.fossify.musicplayer.models.Playlist
 
 /** Android calls the same screen for placement and later reconfiguration. Keep all changes
@@ -29,9 +30,10 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
         setResult(RESULT_CANCELED, result)
         val manager = AppWidgetManager.getInstance(this)
-        if (manager.getAppWidgetInfo(id)?.provider != ComponentName(this, PlaylistListWidget::class.java)) {
-            finish()
-            return
+        val provider = when (manager.getAppWidgetInfo(id)?.provider) {
+            ComponentName(this, PlaylistListWidget::class.java) -> PlaylistListWidget()
+            ComponentName(this, PlaylistTileWidget::class.java) -> PlaylistTileWidget()
+            else -> { finish(); return }
         }
         val prefs = PlaylistListWidget.preferences(this)
         val savedIds = prefs.getStringSet(id.toString(), null)
@@ -43,20 +45,21 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         ensureBackgroundThread {
             val playlists = audioHelper.getAllPlaylists().sortedWith(compareBy({ it.title.lowercase() }, { it.id }))
             runOnUiThread {
-                if (!isFinishing && !isDestroyed) showSettings(playlists) {
+                val title = if (provider is PlaylistTileWidget) R.string.widget_playlist_tiles else R.string.widget_playlist_label
+                if (!isFinishing && !isDestroyed) showSettings(playlists, title) {
                     val editor = prefs.edit().putInt("color:$id", color).putInt("transparency:$id", transparency)
                         .putBoolean("heading:$id", heading)
                     if (automatic) editor.remove(id.toString()) else editor.putStringSet(id.toString(), selected.toSet())
                     editor.apply()
                     // The host skips the first onUpdate when configuration is required.
-                    PlaylistListWidget().onUpdate(this, manager, intArrayOf(id))
+                    provider.onUpdate(this, manager, intArrayOf(id))
                     setResult(RESULT_OK, result)
                 }
             }
         }
     }
 
-    private fun showSettings(playlists: List<Playlist>, save: () -> Unit) {
+    private fun showSettings(playlists: List<Playlist>, title: Int, save: () -> Unit) {
         val pad = (20 * resources.displayMetrics.density).toInt()
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -137,7 +140,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
                 }
             }
         }
-        AlertDialog.Builder(this).setTitle(R.string.widget_playlist_label).setView(scroll)
+        AlertDialog.Builder(this).setTitle(title).setView(scroll)
             .setPositiveButton(android.R.string.ok) { _, _ -> save() }
             .setNegativeButton(android.R.string.cancel, null)
             .setOnDismissListener { finish() }.show()

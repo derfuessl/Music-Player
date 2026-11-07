@@ -12,4 +12,5 @@
     <string name="widget_transparency">Transparenz: %1$d %%</string>
     <string name="widget_transparency_label">Transparenz</string>
     <string name="widget_show_title">Überschrift anzeigen</string>
+    <string name="widget_playlist_tiles">Playlist-Kacheln</string>
 </resources>

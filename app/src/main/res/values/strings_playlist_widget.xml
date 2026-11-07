@@ -12,4 +12,5 @@
     <string name="widget_transparency">Transparency: %1$d%%</string>
     <string name="widget_transparency_label">Transparency</string>
     <string name="widget_show_title">Show heading</string>
+    <string name="widget_playlist_tiles">Playlist tiles</string>
 </resources>
