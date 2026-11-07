@@ -19,15 +19,17 @@ import org.fossify.musicplayer.extensions.audioHelper
 import org.fossify.musicplayer.models.Playlist
 
 /** Each home-screen instance owns its selection. A missing preference means automatic selection. */
-class PlaylistListWidget : AppWidgetProvider() {
+open class PlaylistListWidget : AppWidgetProvider() {
+    protected open val tiled = false
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         appWidgetIds.forEach { id ->
-            val views = RemoteViews(context.packageName, R.layout.widget_playlist_list)
+            val views = RemoteViews(context.packageName, if (tiled) R.layout.widget_playlist_grid else R.layout.widget_playlist_list)
             // Android compares intents without their extras when sharing factories or PendingIntents.
             // Distinct data URIs keep two adjacent lists and their configuration buttons independent.
             val identity = Uri.parse("playlist-widget://instance/$id")
             val adapter = Intent(context, PlaylistListService::class.java).setData(identity)
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                .putExtra(TILED, tiled)
             views.setRemoteAdapter(R.id.widget_playlist_rows, adapter)
             views.setEmptyView(R.id.widget_playlist_rows, R.id.widget_playlist_empty)
             val prefs = preferences(context)
@@ -58,21 +60,31 @@ class PlaylistListWidget : AppWidgetProvider() {
 
     companion object {
         const val LIMIT = 6
+        const val TILED = "playlist_widget_tiled"
         const val DEFAULT_COLOR = 0xFFF6F5FC.toInt()
         fun textColor(color: Int) = if (ColorUtils.calculateLuminance(color) > 0.179) Color.BLACK else Color.WHITE
         fun preferences(context: Context) = context.getSharedPreferences("playlist_list_widgets", Context.MODE_PRIVATE)
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
-            val ids = manager.getAppWidgetIds(ComponentName(context, PlaylistListWidget::class.java))
-            if (ids.isNotEmpty()) manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_playlist_rows)
+            for (provider in listOf(PlaylistListWidget::class.java, PlaylistTileWidget::class.java)) {
+                val ids = manager.getAppWidgetIds(ComponentName(context, provider))
+                if (ids.isNotEmpty()) manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_playlist_rows)
+            }
         }
     }
+}
+
+/** A distinct provider gives the launcher a separate entry. Settings and taps are still scoped to
+ * the widget ID, so a grid and a list can use completely different selections on the same screen. */
+class PlaylistTileWidget : PlaylistListWidget() {
+    override val tiled = true
 }
 
 /** The launcher asks for rows on a worker thread. Only the small thumbnail crosses the process boundary. */
 class PlaylistListService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
         val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+        val tiled = intent.getBooleanExtra(PlaylistListWidget.TILED, false)
         return object : RemoteViewsFactory {
             private var items: List<Playlist> = emptyList()
             override fun onCreate() {}
@@ -89,13 +101,16 @@ class PlaylistListService : RemoteViewsService() {
             override fun getLoadingView(): RemoteViews? = null
             override fun getViewAt(position: Int): RemoteViews? {
                 val playlist = items.getOrNull(position) ?: return null
-                return RemoteViews(packageName, R.layout.widget_playlist_row).apply {
+                return RemoteViews(packageName, if (tiled) R.layout.widget_playlist_tile else R.layout.widget_playlist_row).apply {
                     setTextViewText(R.id.widget_playlist_name, playlist.title)
                     val color = PlaylistListWidget.preferences(this@PlaylistListService).getInt("color:$widgetId", PlaylistListWidget.DEFAULT_COLOR)
                     setTextColor(R.id.widget_playlist_name, PlaylistListWidget.textColor(color))
                     val art = PlaylistArtwork.loadPlaylist(applicationContext, playlist.id)
                     if (art == null) setImageViewResource(R.id.widget_playlist_picture, R.drawable.ic_playlist_vector)
-                    else setImageViewBitmap(R.id.widget_playlist_picture, Bitmap.createScaledBitmap(art, 96, 96, true))
+                    else {
+                        val pixels = if (tiled) 192 else 96
+                        setImageViewBitmap(R.id.widget_playlist_picture, Bitmap.createScaledBitmap(art, pixels, pixels, true))
+                    }
                     val open = Intent().putExtra(PLAYLIST, playlist.id)
                     setOnClickFillInIntent(R.id.widget_playlist_name, open)
                     setOnClickFillInIntent(R.id.widget_playlist_picture, Intent(open).putExtra(PlaylistWidgetActionActivity.PLAY, true))

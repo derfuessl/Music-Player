@@ -1,0 +1,8 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal"
+    android:gravity="center" android:background="@drawable/widget_playlist_panel">
+    <ImageView android:layout_width="64dp" android:layout_height="64dp" android:padding="12dp"
+        android:src="@drawable/ic_playlist_vector" android:tint="#334783" android:background="#D9DEFF" />
+    <ImageView android:layout_width="64dp" android:layout_height="64dp" android:layout_marginStart="6dp" android:padding="12dp"
+        android:src="@drawable/ic_playlist_vector" android:tint="#524074" android:background="#EBDDF8" />
+</LinearLayout>
