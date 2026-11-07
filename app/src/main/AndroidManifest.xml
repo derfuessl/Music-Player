@@ -107,6 +107,12 @@
             android:parentActivityName=".activities.MainActivity" />
 
         <activity
+            android:name=".activities.PlaylistCoverActivity"
+            android:exported="false"
+            android:label="@string/playlist_cover"
+            android:parentActivityName=".activities.MainActivity" />
+
+        <activity
             android:name="org.fossify.musicplayer.activities.AlbumsActivity"
             android:configChanges="orientation"
             android:exported="false"

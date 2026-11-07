@@ -221,6 +221,7 @@ class AudioHelper(private val context: Context) {
         context.playlistDAO.deletePlaylists(playlists)
         playlists.forEach {
             context.tracksDAO.removePlaylistSongs(it.id)
+            PlaylistArtwork.reset(context, it.id)
         }
     }
 

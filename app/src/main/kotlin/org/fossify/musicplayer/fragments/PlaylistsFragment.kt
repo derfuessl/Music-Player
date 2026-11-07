@@ -72,7 +72,8 @@ class PlaylistsFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
                         binding.playlistsList.scheduleLayoutAnimation()
                     }
                 } else {
-                    (adapter as PlaylistsAdapter).updateItems(playlists)
+                    // A cover can change without the playlist title or track count changing.
+                    (adapter as PlaylistsAdapter).updateItems(playlists, forceUpdate = true)
                 }
             }
         }

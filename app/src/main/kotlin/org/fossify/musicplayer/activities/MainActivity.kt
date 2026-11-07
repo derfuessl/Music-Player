@@ -201,6 +201,7 @@ class MainActivity : SimpleMusicActivity() {
     }
 
     private fun refreshAllFragments(showProgress: Boolean = config.appRunCount == 1) {
+        PlaylistArtwork.invalidate()
         if (showProgress) {
             binding.loadingProgressBar.show()
         }

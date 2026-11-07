@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <org.fossify.commons.views.MyAppBarLayout android:id="@+id/cover_appbar"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+        <com.google.android.material.appbar.MaterialToolbar android:id="@+id/cover_toolbar"
+            android:layout_width="match_parent" android:layout_height="?attr/actionBarSize"
+            android:background="@color/color_primary" app:title="@string/playlist_cover"
+            app:titleTextAppearance="@style/AppTheme.ActionBar.TitleTextStyle" />
+    </org.fossify.commons.views.MyAppBarLayout>
+    <androidx.core.widget.NestedScrollView android:id="@+id/cover_scroll"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:fillViewport="true" app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        <LinearLayout android:id="@+id/cover_content" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
+            <org.fossify.commons.views.MyTextView android:id="@+id/cover_playlist_title"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textSize="24sp" android:textStyle="bold" android:accessibilityHeading="true" />
+            <com.google.android.material.imageview.ShapeableImageView android:id="@+id/cover_preview"
+                android:layout_width="240dp" android:layout_height="240dp"
+                android:layout_gravity="center_horizontal" android:layout_marginTop="24dp"
+                android:scaleType="centerCrop" android:contentDescription="@string/playlist_cover_preview"
+                app:shapeAppearanceOverlay="@style/PlaylistCoverShape" />
+            <org.fossify.commons.views.MyTextView android:id="@+id/cover_mode"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="16dp" android:textSize="18sp" android:gravity="center" />
+            <org.fossify.commons.views.MyTextView android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="16dp"
+                android:text="@string/playlist_cover_explanation" android:textSize="16sp" />
+            <com.google.android.material.progressindicator.CircularProgressIndicator android:id="@+id/cover_progress"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal" android:layout_marginTop="16dp" android:indeterminate="true" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/cover_from_tracks"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+                android:layout_marginTop="16dp" android:text="@string/playlist_cover_from_tracks" android:textAllCaps="false" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/cover_from_image"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+                android:layout_marginTop="8dp" android:text="@string/playlist_cover_from_image" android:textAllCaps="false" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/cover_automatic"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+                android:layout_marginTop="8dp" android:text="@string/playlist_cover_automatic" android:textAllCaps="false" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

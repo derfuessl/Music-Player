@@ -21,4 +21,5 @@
         android:showAsAction="always"
         android:title="@string/select_all"
         app:showAsAction="always" />
+    <item android:id="@+id/cab_playlist_cover" android:title="@string/playlist_cover" app:showAsAction="never" />
 </menu>
