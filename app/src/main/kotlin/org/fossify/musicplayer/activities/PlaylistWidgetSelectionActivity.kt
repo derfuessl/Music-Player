@@ -10,14 +10,23 @@ import androidx.appcompat.app.AlertDialog
 import org.fossify.commons.dialogs.ColorPickerDialog
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.musicplayer.R
-import org.fossify.musicplayer.extensions.audioHelper
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.view.ViewGroup
+import androidx.core.widget.doAfterTextChanged
+import org.fossify.musicplayer.extensions.playlistDAO
+import java.util.concurrent.Executors
 import org.fossify.musicplayer.helpers.PlaylistListWidget
 import org.fossify.musicplayer.helpers.PlaylistTileWidget
-import org.fossify.musicplayer.models.Playlist
+import org.fossify.musicplayer.helpers.WidgetPlaylistIndex
 
 /** Android calls the same screen for placement and later reconfiguration. Keep all changes
  * local to this screen until OK, so cancelling a resize-menu edit preserves the existing widget. */
 class PlaylistWidgetSelectionActivity : SimpleActivity() {
+    private val worker = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
+    private var query = ""
     private var color = PlaylistListWidget.DEFAULT_COLOR
     private var transparency = 0
     private var heading = false
@@ -35,6 +44,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
             ComponentName(this, PlaylistTileWidget::class.java) -> PlaylistTileWidget()
             else -> { finish(); return }
         }
+        query = savedInstanceState?.getString("query").orEmpty()
         val prefs = PlaylistListWidget.preferences(this)
         val savedIds = prefs.getStringSet(id.toString(), null)
         automatic = savedInstanceState?.getBoolean("automatic") ?: (savedIds == null)
@@ -43,7 +53,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         transparency = savedInstanceState?.getInt("transparency") ?: prefs.getInt("transparency:$id", 0)
         heading = savedInstanceState?.getBoolean("heading") ?: prefs.getBoolean("heading:$id", false)
         ensureBackgroundThread {
-            val playlists = audioHelper.getAllPlaylists().sortedWith(compareBy({ it.title.lowercase() }, { it.id }))
+            val playlists = WidgetPlaylistIndex(playlistDAO.widgetPlaylists(Int.MAX_VALUE))
             runOnUiThread {
                 val title = if (provider is PlaylistTileWidget) R.string.widget_playlist_tiles else R.string.widget_playlist_label
                 if (!isFinishing && !isDestroyed) showSettings(playlists, title) {
@@ -59,13 +69,28 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         }
     }
 
-    private fun showSettings(playlists: List<Playlist>, title: Int, save: () -> Unit) {
+    private fun showSettings(playlists: WidgetPlaylistIndex, title: Int, save: () -> Unit) {
         val pad = (20 * resources.displayMetrics.density).toInt()
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad / 2, pad, pad / 2)
         }
-        val scroll = ScrollView(this).apply { addView(column) }
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            isFocusableInTouchMode = true // don't bring up the keyboard before the user taps Search
+        }
+        val search = EditText(this).apply {
+            setSingleLine()
+            setHint(R.string.widget_search)
+            setText(query)
+            setSelection(text.length)
+        }
+        panel.addView(search)
+        val empty = TextView(this).apply { setText(R.string.widget_search_empty); visibility = View.GONE }
+        panel.addView(empty)
+        val list = ListView(this)
+        panel.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
+        list.addHeaderView(column, null, false)
         val colorButton = Button(this)
         fun displayColor() {
             colorButton.setText(R.string.widget_panel_color)
@@ -110,44 +135,82 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
 
         // Automatic mode follows the first six available playlists. Tapping a row converts that
         // visible selection into a fixed list. Removed playlists must not consume a selection slot.
-        selected.retainAll(playlists.map { it.id.toString() }.toSet())
-        val boxes = playlists.map { playlist ->
-            CheckBox(this).apply { text = playlist.title; column.addView(this) }
-        }
+        selected.retainAll(playlists.keys)
         fun selectDefaults() {
             selected.clear()
-            playlists.take(PlaylistListWidget.LIMIT).forEach { selected.add(it.id.toString()) }
-        }
-        fun displaySelection() {
-            boxes.forEachIndexed { index, box -> box.isChecked = playlists[index].id.toString() in selected }
+            playlists.rows.take(PlaylistListWidget.LIMIT).forEach { selected.add(it.key) }
         }
         if (automatic) selectDefaults()
-        displaySelection()
-        auto.setOnClickListener {
-            automatic = auto.isChecked
-            if (automatic) { selectDefaults(); displaySelection() }
-        }
-        boxes.forEachIndexed { index, box ->
-            box.setOnClickListener {
-                val key = playlists[index].id.toString()
-                if (box.isChecked && selected.size >= PlaylistListWidget.LIMIT) {
-                    box.isChecked = false
-                    Toast.makeText(this, getString(R.string.widget_playlist_limit, PlaylistListWidget.LIMIT), Toast.LENGTH_SHORT).show()
-                } else {
-                    automatic = false
-                    auto.isChecked = false
-                    if (box.isChecked) selected.add(key) else selected.remove(key)
+        var matches = if (query.isBlank()) playlists.rows else emptyList()
+        val adapter = object : BaseAdapter() {
+            override fun getCount() = matches.size
+            override fun getItem(position: Int) = matches[position]
+            override fun getItemId(position: Int) = getItem(position).key.toLong()
+            override fun hasStableIds() = true
+
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val row = getItem(position)
+                // Bind both title and check state on every reuse. Selection belongs to a stable
+                // database ID, never to the filtered position or to a recycled CheckBox.
+                return (convertView as? CheckBox ?: CheckBox(parent.context)).apply {
+                    text = row.title
+                    isChecked = row.key in selected
+                    setOnClickListener {
+                        if (isChecked && selected.size >= PlaylistListWidget.LIMIT) {
+                            isChecked = false
+                            Toast.makeText(context, getString(R.string.widget_playlist_limit, PlaylistListWidget.LIMIT), Toast.LENGTH_SHORT).show()
+                        } else {
+                            automatic = false
+                            auto.isChecked = false
+                            if (isChecked) selected.add(row.key) else selected.remove(row.key)
+                        }
+                    }
                 }
             }
         }
-        AlertDialog.Builder(this).setTitle(title).setView(scroll)
+        list.adapter = adapter
+        auto.setOnClickListener {
+            automatic = auto.isChecked
+            if (automatic) { selectDefaults(); adapter.notifyDataSetChanged() }
+        }
+        var generation = 0
+        fun filter(text: String) {
+            query = text
+            val latest = ++generation
+            // Coalesce rapid keystrokes and reject late results after changes or rotation.
+            // This handler is private to the picker, so removing callbacks affects only its work.
+            handler.removeCallbacksAndMessages(null)
+            handler.postDelayed({
+                worker.execute {
+                    val results = playlists.search(text)
+                    runOnUiThread {
+                        if (isDestroyed || isFinishing || latest != generation) return@runOnUiThread
+                        matches = results
+                        column.visibility = if (text.isBlank()) View.VISIBLE else View.GONE
+                        empty.visibility = if (results.isEmpty()) View.VISIBLE else View.GONE
+                        adapter.notifyDataSetChanged()
+                        list.setSelection(0)
+                    }
+                }
+            }, 100)
+        }
+        search.doAfterTextChanged { filter(it.toString()) }
+        filter(query)
+        AlertDialog.Builder(this).setTitle(title).setView(panel)
             .setPositiveButton(android.R.string.ok) { _, _ -> save() }
             .setNegativeButton(android.R.string.cancel, null)
             .setOnDismissListener { finish() }.show()
     }
 
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        worker.shutdownNow()
+        super.onDestroy()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putString("query", query)
         outState.putInt("color", color)
         outState.putInt("transparency", transparency)
         outState.putBoolean("heading", heading)
