@@ -1,0 +1,14 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@drawable/widget_playlist_panel" android:padding="8dp">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/widget_playlist_title" android:textColor="#182449" android:textSize="16sp"
+        android:textStyle="bold" android:paddingStart="6dp" android:paddingEnd="6dp" />
+    <TextView android:id="@+id/widget_playlist_choose" android:layout_width="match_parent"
+        android:layout_height="48dp" android:gravity="start|center_vertical" android:paddingStart="6dp"
+        android:paddingEnd="6dp" android:text="@string/widget_playlist_choose" android:textColor="#324B85" />
+    <ListView android:id="@+id/widget_playlist_rows" android:layout_width="match_parent"
+        android:layout_height="0dp" android:layout_weight="1" android:divider="@android:color/transparent" android:dividerHeight="1dp" />
+    <TextView android:id="@+id/widget_playlist_empty" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="@string/widget_playlist_empty" android:textColor="#182449" />
+</LinearLayout>

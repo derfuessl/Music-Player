@@ -5,13 +5,25 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import org.fossify.commons.extensions.checkUseEnglish
+import org.fossify.musicplayer.helpers.PlaylistListWidget
 import org.fossify.musicplayer.helpers.SimpleMediaController
+import org.fossify.musicplayer.models.Events
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
 
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
         checkUseEnglish()
+        EventBus.getDefault().register(this)
         initController()
+    }
+
+    // A playlist can be edited directly from a home-screen widget without opening MainActivity.
+    // Observe the existing change event for the whole process so every placed list stays current.
+    @Subscribe
+    fun onPlaylistsChanged(event: Events.PlaylistsUpdated) {
+        PlaylistListWidget.refresh(this)
     }
 
     private fun initController() {
