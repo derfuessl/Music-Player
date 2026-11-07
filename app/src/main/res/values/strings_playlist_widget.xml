@@ -1,0 +1,8 @@
+<resources>
+    <string name="widget_playlist_label">Playlist list</string>
+    <string name="widget_playlist_title">Playlists</string>
+    <string name="widget_playlist_choose">Choose playlists</string>
+    <string name="widget_playlist_empty">No playlists selected or available.</string>
+    <string name="widget_playlist_limit">Choose up to %1$d playlists</string>
+    <string name="widget_playlist_auto">Automatic</string>
+</resources>

@@ -468,5 +468,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+        <activity android:name=".activities.PlaylistWidgetSelectionActivity" android:exported="false" />
+        <service android:name=".helpers.PlaylistListService" android:permission="android.permission.BIND_REMOTEVIEWS" android:exported="false" />
+        <receiver android:name=".helpers.PlaylistListWidget" android:exported="false" android:label="@string/widget_playlist_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_playlist_info" />
+        </receiver>
     </application>
 </manifest>
