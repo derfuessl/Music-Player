@@ -3,15 +3,19 @@
     <ImageView android:id="@+id/widget_playlist_panel" android:layout_width="match_parent"
         android:layout_height="match_parent" android:src="@drawable/widget_playlist_panel"
         android:scaleType="fitXY" android:importantForAccessibility="no" />
-<LinearLayout
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:padding="@dimen/widget_playlist_content_inset" android:orientation="vertical">
-    <TextView android:id="@+id/widget_playlist_heading" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="@string/widget_playlist_title" android:textColor="#182449" android:textSize="16sp"
-        android:textStyle="bold" android:paddingStart="6dp" android:paddingEnd="6dp" />
-    <ListView android:id="@+id/widget_playlist_rows" android:layout_width="match_parent"
-        android:layout_height="0dp" android:layout_weight="1" android:divider="@android:color/transparent" android:dividerHeight="1dp" />
-    <TextView android:id="@+id/widget_playlist_empty" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="@string/widget_playlist_empty" android:textColor="#182449" />
-</LinearLayout>
+    <!-- The horizontal inset clears the rounded corners. Vertical spacing belongs to the
+         individual cells, so stacking panels does not add an extra pair of margins. -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:paddingStart="@dimen/widget_playlist_content_inset" android:paddingEnd="@dimen/widget_playlist_content_inset"
+        android:orientation="vertical">
+        <TextView android:id="@+id/widget_playlist_heading" android:visibility="gone"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1"
+            android:text="@string/widget_playlist_title" android:textSize="16sp" android:textStyle="bold" />
+        <!-- One full-height page holds every selected playlist. The host still loads artwork
+             on its RemoteViewsFactory worker, while the widget itself cannot scroll or page. -->
+        <AdapterViewFlipper android:id="@+id/widget_playlist_rows" android:autoStart="false"
+            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView android:id="@+id/widget_playlist_empty" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="@string/widget_playlist_empty" />
+    </LinearLayout>
 </FrameLayout>

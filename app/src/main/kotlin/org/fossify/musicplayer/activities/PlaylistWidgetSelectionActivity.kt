@@ -135,7 +135,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         val auto = CheckBox(this).apply { setText(R.string.widget_playlist_auto); isChecked = automatic }
         column.addView(auto)
 
-        // Automatic mode follows the first six available playlists. Tapping a row converts that
+        // Automatic mode follows the first twelve available playlists. Tapping a row converts that
         // visible selection into a fixed list. Removed playlists must not consume a selection slot.
         selected.retainAll(playlists.keys)
         fun selectDefaults() {

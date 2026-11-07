@@ -15,7 +15,7 @@ interface PlaylistsDao {
     fun getAll(): List<Playlist>
 
     // Use the same ordering in the picker and on the launcher. A widget refresh needs at
-    // most six objects even when the library contains thousands of playlists.
+    // most twelve objects even when the library contains thousands of playlists.
     @Query("SELECT * FROM playlists ORDER BY title COLLATE NOCASE, id LIMIT :limit")
     fun widgetPlaylists(limit: Int): List<Playlist>
 
