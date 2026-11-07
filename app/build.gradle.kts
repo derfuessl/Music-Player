@@ -72,6 +72,9 @@ android {
             applicationIdSuffix = ".debug"
         }
         release {
+            // Each public edition can be installed alongside the others and the original player.
+            applicationIdSuffix = ".coverwidgets"
+            versionNameSuffix = "-kids.1"
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
