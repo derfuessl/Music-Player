@@ -3,5 +3,5 @@
     android:widgetFeatures="reconfigurable"
     android:minWidth="110dp" android:minHeight="48dp" android:minResizeWidth="110dp" android:minResizeHeight="48dp"
     android:targetCellWidth="2" android:targetCellHeight="1" android:resizeMode="horizontal|vertical"
-    android:initialLayout="@layout/widget_playlist_list" android:previewLayout="@layout/widget_playlist_list"
+    android:initialLayout="@layout/widget_playlist_list" android:previewImage="@drawable/kids_preview_list" android:previewLayout="@layout/widget_playlist_list_preview"
     android:updatePeriodMillis="1800000" android:widgetCategory="home_screen" />
