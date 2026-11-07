@@ -1,6 +1,8 @@
 package org.fossify.musicplayer.extensions
 
 import android.content.Context
+import android.os.Bundle
+import org.fossify.musicplayer.helpers.PLAYLIST
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -138,6 +140,7 @@ fun Player.prepareUsingTracks(
     startIndex: Int = 0,
     startPositionMs: Long = 0,
     play: Boolean = false,
+    playlistId: Int? = null,
     callback: ((success: Boolean) -> Unit)? = null
 ) {
     if (tracks.isEmpty()) {
@@ -147,7 +150,14 @@ fun Player.prepareUsingTracks(
         return
     }
 
-    val mediaItems = tracks.toMediaItemsFast()
+    // Send the source once for the whole setMediaItems request. Library tracks can belong
+    // to several playlists, so deriving this from individual track records is ambiguous.
+    val mediaItems = tracks.toMediaItemsFast().toMutableList()
+    if (playlistId != null) {
+        val request = MediaItem.RequestMetadata.Builder()
+            .setExtras(Bundle().apply { putInt(PLAYLIST, playlistId) }).build()
+        mediaItems[0] = mediaItems[0].buildUpon().setRequestMetadata(request).build()
+    }
     runOnPlayerThread {
         setMediaItems(mediaItems, startIndex, startPositionMs)
         playWhenReady = play

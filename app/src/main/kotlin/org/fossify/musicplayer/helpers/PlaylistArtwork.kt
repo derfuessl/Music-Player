@@ -215,6 +215,33 @@ object PlaylistArtwork {
         return bitmap
     }
 
+    /**
+     * Media3 loads this URI for the current song. Sharing one thumbnail URI across the queue
+     * avoids duplicating bitmap bytes for every song in large playlists. The cache directory
+     * is disposable and each playlist reuses one file. A revision distinguishes edited art.
+     */
+    fun notificationUri(context: Context, playlistId: Int): Uri? {
+        return try {
+            val bitmap = loadPlaylist(context, playlistId) ?: return null
+            synchronized(filesLock) {
+                val target = AtomicFile(File(context.cacheDir, "playlist_notification/$playlistId.jpg"))
+                val stream = target.startWrite()
+                try {
+                    check(bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream))
+                    target.finishWrite(stream)
+                } catch (error: Exception) {
+                    target.failWrite(stream)
+                    throw error
+                }
+                androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", target.baseFile)
+                    .buildUpon().appendQueryParameter("rev", android.os.SystemClock.elapsedRealtimeNanos().toString()).build()
+            }
+        } catch (ignored: Exception) {
+            // Playback can still use the original song artwork if the cache cannot be written.
+            null
+        }
+    }
+
     private fun fingerprint(bitmap: Bitmap): String {
         // Hash normalized pixels rather than JPEG bytes: the same embedded image may have different
         // tags/encodings in several MP3s. Repeated album covers should occupy only one tile.

@@ -2,4 +2,5 @@
 <paths>
     <external-path name="external_files" path="."/>
     <root-path name="external_files" path="/storage/" />
+    <cache-path name="playlist_notification" path="playlist_notification/" />
 </paths>

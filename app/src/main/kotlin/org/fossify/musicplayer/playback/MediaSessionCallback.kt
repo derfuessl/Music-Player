@@ -1,6 +1,9 @@
 package org.fossify.musicplayer.playback
 
 import android.os.Bundle
+import org.fossify.musicplayer.extensions.playlistDAO
+import org.fossify.musicplayer.helpers.PLAYLIST
+import org.fossify.musicplayer.helpers.PlaylistArtwork
 import android.os.ConditionVariable
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -231,11 +234,29 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
         mediaItems: List<MediaItem>
     ): ListenableFuture<List<MediaItem>> {
         return executorService.submit<List<MediaItem>> {
+            // Resolve playlist context on the existing library worker. Each queue owns its
+            // metadata, so switching to an album or a folder clears it automatically.
+            val playlistId = mediaItems.firstOrNull()?.requestMetadata?.extras?.getInt(PLAYLIST, -1)
+            val playlist = if (controller.packageName == packageName && playlistId != null && playlistId > 0) {
+                playlistDAO.getPlaylistWithId(playlistId)
+            } else null
+            val artwork = playlist?.let { PlaylistArtwork.notificationUri(this@getMediaSessionCallback, it.id) }
             val items = mediaItems.map { mediaItem ->
-                if (mediaItem.requestMetadata.searchQuery != null) {
+                val resolved = if (mediaItem.requestMetadata.searchQuery != null) {
                     getMediaItemFromSearchQuery(mediaItem.requestMetadata.searchQuery!!)
                 } else {
                     mediaItemProvider[mediaItem.mediaId] ?: mediaItem
+                }
+                if (playlist == null) resolved else {
+                    // SystemUI versions use either artist or display subtitle. Preserve the
+                    // track title, artist credit and original Track record used by the app.
+                    val metadata = resolved.mediaMetadata
+                    val subtitle = listOf(playlist.title, metadata.artist?.toString())
+                        .filterNot { it.isNullOrBlank() }.distinct().joinToString(" · ")
+                    resolved.buildUpon().setMediaMetadata(metadata.buildUpon()
+                        .setSubtitle(subtitle).setArtist(subtitle)
+                        .apply { if (artwork != null) setArtworkUri(artwork) }
+                        .build()).build()
                 }
             }
             items
