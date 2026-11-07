@@ -103,6 +103,7 @@ class TracksActivity : SimpleMusicActivity() {
             findItem(R.id.add_file_to_playlist).isVisible = sourceType == TYPE_PLAYLIST
             findItem(R.id.add_folder_to_playlist).isVisible = sourceType == TYPE_PLAYLIST
             findItem(R.id.export_playlist).isVisible = sourceType == TYPE_PLAYLIST
+            findItem(R.id.playlist_cover).isVisible = sourceType == TYPE_PLAYLIST
         }
     }
 
@@ -114,6 +115,10 @@ class TracksActivity : SimpleMusicActivity() {
                 R.id.add_file_to_playlist -> addFileToPlaylist()
                 R.id.add_folder_to_playlist -> addFolderToPlaylist()
                 R.id.export_playlist -> tryExportPlaylist()
+                R.id.playlist_cover -> playlist?.let {
+                    startActivity(Intent(this, PlaylistCoverActivity::class.java)
+                        .putExtra(PlaylistCoverActivity.EXTRA_PLAYLIST_ID, it.id))
+                }
                 else -> return@setOnMenuItemClickListener false
             }
             return@setOnMenuItemClickListener true

@@ -1,0 +1,15 @@
+<resources>
+    <string name="playlist_cover">Playlist image</string>
+    <string name="playlist_cover_preview">Current playlist image</string>
+    <string name="playlist_cover_from_tracks">Choose a song cover</string>
+    <string name="playlist_cover_from_image">Choose an image file</string>
+    <string name="playlist_cover_automatic">Use automatic collage</string>
+    <string name="playlist_cover_custom">Your chosen image</string>
+    <string name="playlist_cover_auto_mode">Automatic image</string>
+    <string name="playlist_cover_explanation">Without a chosen image, up to four different song covers form a collage. With fewer covers, the available images fill the square. Your own image is saved as a copy; music files stay unchanged. Changes are saved immediately.</string>
+    <string name="playlist_cover_empty">Add songs to this playlist to choose their covers.</string>
+    <string name="playlist_cover_no_image">No readable cover was found for this song.</string>
+    <string name="playlist_cover_failed">The image could not be saved. Your previous choice is unchanged.</string>
+    <string name="playlist_cover_saved">Playlist image saved</string>
+    <string name="playlist_cover_missing">This playlist no longer exists.</string>
+</resources>

@@ -1,15 +1,19 @@
 package org.fossify.musicplayer.adapters
 
 import android.view.Menu
+import android.content.Intent
 import android.view.View
 import android.view.ViewGroup
 import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.extensions.highlightTextPart
+import org.fossify.commons.extensions.getColoredDrawableWithColor
 import org.fossify.commons.extensions.setupViewBackground
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.views.MyRecyclerView
 import org.fossify.musicplayer.R
+import org.fossify.musicplayer.activities.PlaylistCoverActivity
+import org.fossify.musicplayer.helpers.PlaylistArtwork
 import org.fossify.musicplayer.databinding.ItemPlaylistBinding
 import org.fossify.musicplayer.dialogs.NewPlaylistDialog
 import org.fossify.musicplayer.dialogs.RemovePlaylistDialog
@@ -42,6 +46,7 @@ class PlaylistsAdapter(
     override fun prepareActionMode(menu: Menu) {
         menu.apply {
             findItem(R.id.cab_rename).isVisible = isOneItemSelected()
+            findItem(R.id.cab_playlist_cover).isVisible = isOneItemSelected()
         }
     }
 
@@ -50,6 +55,13 @@ class PlaylistsAdapter(
             R.id.cab_delete -> askConfirmDelete()
             R.id.cab_rename -> showRenameDialog()
             R.id.cab_select_all -> selectAll()
+            R.id.cab_playlist_cover -> {
+                getSelectedItems().singleOrNull()?.let { playlist ->
+                    context.startActivity(Intent(context, PlaylistCoverActivity::class.java)
+                        .putExtra(PlaylistCoverActivity.EXTRA_PLAYLIST_ID, playlist.id))
+                    finishActMode()
+                }
+            }
         }
     }
 
@@ -104,7 +116,14 @@ class PlaylistsAdapter(
             val tracks = resources.getQuantityString(R.plurals.tracks_plural, playlist.trackCount, playlist.trackCount)
             playlistTracks.text = tracks
             playlistTracks.setTextColor(textColor)
+            val placeholder = resources.getColoredDrawableWithColor(R.drawable.ic_playlist_vector, textColor)
+            PlaylistArtwork.displayPlaylist(playlistImage, playlist.id, placeholder)
         }
+    }
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        PlaylistArtwork.cancel(ItemPlaylistBinding.bind(holder.itemView).playlistImage)
+        super.onViewRecycled(holder)
     }
 
     override fun onChange(position: Int) = items.getOrNull(position)?.getBubbleText(context.config.playlistSorting) ?: ""

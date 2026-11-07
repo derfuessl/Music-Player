@@ -1,0 +1,15 @@
+<resources>
+    <string name="playlist_cover">Playlist-Bild</string>
+    <string name="playlist_cover_preview">Aktuelles Playlist-Bild</string>
+    <string name="playlist_cover_from_tracks">Cover aus Musikdatei wählen</string>
+    <string name="playlist_cover_from_image">Bilddatei auswählen</string>
+    <string name="playlist_cover_automatic">Automatische Collage verwenden</string>
+    <string name="playlist_cover_custom">Dein gewähltes Bild</string>
+    <string name="playlist_cover_auto_mode">Automatisches Bild</string>
+    <string name="playlist_cover_explanation">Ohne eigenes Bild entsteht eine Collage aus bis zu vier unterschiedlichen Covern der Playlist. Bei weniger Covern füllen die vorhandenen Bilder das Quadrat. Dein eigenes Bild wird als Kopie gespeichert; Musikdateien bleiben unverändert. Änderungen werden sofort gespeichert.</string>
+    <string name="playlist_cover_empty">Füge der Playlist Titel hinzu, um deren Cover auszuwählen.</string>
+    <string name="playlist_cover_no_image">Für diesen Titel wurde kein lesbares Cover gefunden.</string>
+    <string name="playlist_cover_failed">Das Bild konnte nicht gespeichert werden. Deine bisherige Auswahl bleibt erhalten.</string>
+    <string name="playlist_cover_saved">Playlist-Bild gespeichert</string>
+    <string name="playlist_cover_missing">Diese Playlist existiert nicht mehr.</string>
+</resources>
