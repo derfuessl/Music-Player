@@ -5,4 +5,7 @@
     <string name="widget_playlist_empty">No playlists selected or available.</string>
     <string name="widget_playlist_limit">Choose up to %1$d playlists</string>
     <string name="widget_playlist_auto">Automatic</string>
+    <string name="widget_play_named_playlist">Play %1$s</string>
+    <string name="widget_no_tracks">This playlist is empty or no longer available.</string>
+    <string name="widget_play_failed">Could not start playback.</string>
 </resources>
