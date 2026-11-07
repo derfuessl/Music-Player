@@ -8,4 +8,8 @@
     <string name="widget_play_named_playlist">Play %1$s</string>
     <string name="widget_no_tracks">This playlist is empty or no longer available.</string>
     <string name="widget_play_failed">Could not start playback.</string>
+    <string name="widget_panel_color">Background color</string>
+    <string name="widget_transparency">Transparency: %1$d%%</string>
+    <string name="widget_transparency_label">Transparency</string>
+    <string name="widget_show_title">Show heading</string>
 </resources>

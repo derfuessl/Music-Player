@@ -468,7 +468,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
-        <activity android:name=".activities.PlaylistWidgetSelectionActivity" android:exported="false" />
+        <activity android:name=".activities.PlaylistWidgetSelectionActivity" android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
         <activity android:name=".activities.PlaylistWidgetActionActivity" android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true"
             android:taskAffinity="${applicationId}.widgetPlayback" android:launchMode="singleTop" />

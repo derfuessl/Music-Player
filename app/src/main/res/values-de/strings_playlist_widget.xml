@@ -8,4 +8,8 @@
     <string name="widget_play_named_playlist">%1$s abspielen</string>
     <string name="widget_no_tracks">Diese Playlist ist leer oder nicht mehr vorhanden.</string>
     <string name="widget_play_failed">Die Wiedergabe konnte nicht gestartet werden.</string>
+    <string name="widget_panel_color">Hintergrundfarbe</string>
+    <string name="widget_transparency">Transparenz: %1$d %%</string>
+    <string name="widget_transparency_label">Transparenz</string>
+    <string name="widget_show_title">Überschrift anzeigen</string>
 </resources>

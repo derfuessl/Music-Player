@@ -11,7 +11,9 @@ import android.net.Uri
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import org.fossify.musicplayer.R
-import org.fossify.musicplayer.activities.PlaylistWidgetSelectionActivity
+import android.graphics.Color
+import android.view.View
+import androidx.core.graphics.ColorUtils
 import org.fossify.musicplayer.activities.PlaylistWidgetActionActivity
 import org.fossify.musicplayer.extensions.audioHelper
 import org.fossify.musicplayer.models.Playlist
@@ -28,10 +30,15 @@ class PlaylistListWidget : AppWidgetProvider() {
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
             views.setRemoteAdapter(R.id.widget_playlist_rows, adapter)
             views.setEmptyView(R.id.widget_playlist_rows, R.id.widget_playlist_empty)
-            val configure = Intent(context, PlaylistWidgetSelectionActivity::class.java).setData(identity)
-                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-            views.setOnClickPendingIntent(R.id.widget_playlist_choose, PendingIntent.getActivity(context, id, configure,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            val prefs = preferences(context)
+            val color = prefs.getInt("color:$id", DEFAULT_COLOR)
+            val transparency = prefs.getInt("transparency:$id", 0)
+            views.setInt(R.id.widget_playlist_panel, "setColorFilter", color)
+            views.setInt(R.id.widget_playlist_panel, "setImageAlpha", (100 - transparency) * 255 / 100)
+            views.setViewVisibility(R.id.widget_playlist_heading,
+                if (prefs.getBoolean("heading:$id", false)) View.VISIBLE else View.GONE)
+            views.setTextColor(R.id.widget_playlist_heading, textColor(color))
+            views.setTextColor(R.id.widget_playlist_empty, textColor(color))
             // A collection has one template. Its two child targets supply the playlist ID and
             // desired action; the component stays pinned to our private widget entry point.
             val open = Intent(context, PlaylistWidgetActionActivity::class.java).setData(identity)
@@ -45,12 +52,14 @@ class PlaylistListWidget : AppWidgetProvider() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         val editor = preferences(context).edit()
-        appWidgetIds.forEach { editor.remove(it.toString()) }
+        appWidgetIds.forEach { editor.remove(it.toString()).remove("color:$it").remove("transparency:$it").remove("heading:$it") }
         editor.apply()
     }
 
     companion object {
         const val LIMIT = 6
+        const val DEFAULT_COLOR = 0xFFF6F5FC.toInt()
+        fun textColor(color: Int) = if (ColorUtils.calculateLuminance(color) > 0.179) Color.BLACK else Color.WHITE
         fun preferences(context: Context) = context.getSharedPreferences("playlist_list_widgets", Context.MODE_PRIVATE)
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -82,6 +91,8 @@ class PlaylistListService : RemoteViewsService() {
                 val playlist = items.getOrNull(position) ?: return null
                 return RemoteViews(packageName, R.layout.widget_playlist_row).apply {
                     setTextViewText(R.id.widget_playlist_name, playlist.title)
+                    val color = PlaylistListWidget.preferences(this@PlaylistListService).getInt("color:$widgetId", PlaylistListWidget.DEFAULT_COLOR)
+                    setTextColor(R.id.widget_playlist_name, PlaylistListWidget.textColor(color))
                     val art = PlaylistArtwork.loadPlaylist(applicationContext, playlist.id)
                     if (art == null) setImageViewResource(R.id.widget_playlist_picture, R.drawable.ic_playlist_vector)
                     else setImageViewBitmap(R.id.widget_playlist_picture, Bitmap.createScaledBitmap(art, 96, 96, true))
