@@ -47,50 +47,48 @@ internal class MediaItemProvider(private val context: Context) {
         MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
     }
 
-    inner class MediaItemNode(val item: MediaItem) {
+    private class MediaItemNode(val item: MediaItem) {
         private val children: MutableList<MediaItem> = ArrayList()
-        fun addChild(mediaId: String) = children.add(treeNodes[mediaId]!!.item)
+        fun addChild(child: MediaItem) = children.add(child)
         fun getChildren() = children.toList()
     }
 
-    private val treeNodes = mutableMapOf<String, MediaItemNode>()
-    private var titleMap: MutableMap<String, MediaItemNode> = mutableMapOf()
-    private val onReadyListeners = mutableListOf<(Boolean) -> Unit>()
-
-    private var state: Int = STATE_CREATED
-        set(value) {
-            if (value == STATE_INITIALIZED || value == STATE_ERROR) {
-                synchronized(onReadyListeners) {
-                    field = value
-                    Handler(Looper.getMainLooper()).post {
-                        onReadyListeners.forEach { listener ->
-                            listener(state == STATE_INITIALIZED)
-                        }
-                    }
-                }
-            } else {
-                field = value
-            }
-        }
-
-    private val audioHelper = context.audioHelper
-
-    init {
-        buildRoot()
+    private class LibraryTree {
+        val treeNodes = mutableMapOf<String, MediaItemNode>()
+        val titleMap = mutableMapOf<String, MediaItemNode>()
     }
 
-    fun whenReady(performAction: (Boolean) -> Unit): Boolean {
-        return when (state) {
-            STATE_CREATED, STATE_INITIALIZING -> {
-                onReadyListeners += performAction
-                false
-            }
+    // Build a complete replacement on the library worker. Controller threads keep reading
+    // the previous snapshot until publication, including while a playlist is being deleted.
+    @Volatile private var tree = LibraryTree().apply { buildRoot() }
+    @Volatile private var generation = 0L
+    private val onReadyListeners = mutableListOf<(Boolean) -> Unit>()
 
-            else -> {
-                performAction(state != STATE_ERROR)
-                true
+    @Volatile private var state = STATE_CREATED
+    private val audioHelper = context.audioHelper
+
+    fun whenReady(performAction: (Boolean) -> Unit): Boolean {
+        val ready = synchronized(onReadyListeners) {
+            if (state == STATE_CREATED || state == STATE_INITIALIZING) {
+                onReadyListeners.add(performAction)
+                return false
             }
+            state == STATE_INITIALIZED
         }
+        performAction(ready)
+        return true
+    }
+
+    private fun finishLoad(request: Long, replacement: LibraryTree?) {
+        // Drain once. Keeping these closures across rescans retains controllers and
+        // dispatches a growing number of obsolete callbacks on every library update.
+        val pending = synchronized(onReadyListeners) {
+            if (generation != request) return
+            if (replacement != null) tree = replacement
+            state = if (replacement != null) STATE_INITIALIZED else STATE_ERROR
+            onReadyListeners.toList().also { onReadyListeners.clear() }
+        }
+        Handler(Looper.getMainLooper()).post { pending.forEach { it(replacement != null) } }
     }
 
     operator fun get(mediaId: String): MediaItem? {
@@ -108,16 +106,10 @@ internal class MediaItemProvider(private val context: Context) {
 
     fun getChildren(id: String) = getNode(id)?.getChildren()
 
-    fun getRandomItem(): MediaItem {
-        var curRoot = getRootItem()
-        while (curRoot.mediaMetadata.isBrowsable == true) {
-            val children = getChildren(curRoot.mediaId)!!
-            curRoot = children.random()
-        }
-        return curRoot
-    }
+    fun getRandomItem() = getDefaultQueue()?.randomOrNull()
 
     fun getItemFromSearch(searchQuery: String): MediaItem? {
+        val titleMap = tree.titleMap
         var mediaItem = titleMap[searchQuery]?.item
         if (mediaItem == null) {
             val partialMatch = titleMap.keys.find { it.contains(searchQuery) } ?: return null
@@ -169,26 +161,30 @@ internal class MediaItemProvider(private val context: Context) {
     }
 
     fun reload() {
-        state = STATE_INITIALIZING
+        val request = synchronized(onReadyListeners) {
+            state = STATE_INITIALIZING
+            ++generation
+        }
         executor.execute {
-            buildRoot()
-
+            if (generation != request) return@execute
+            val replacement = LibraryTree()
             try {
-                buildPlaylists()
-                buildFolders()
-                buildArtists()
-                buildAlbums()
-                buildTracks()
-                buildGenres()
+                replacement.buildRoot()
+                replacement.buildPlaylists()
+                replacement.buildFolders()
+                replacement.buildArtists()
+                replacement.buildAlbums()
+                replacement.buildTracks()
+                replacement.buildGenres()
             } catch (e: Exception) {
-                state = STATE_ERROR
+                finishLoad(request, null)
+                return@execute
             }
-
-            state = STATE_INITIALIZED
+            finishLoad(request, replacement)
         }
     }
 
-    private fun buildRoot() {
+    private fun LibraryTree.buildRoot() {
         val root = buildMediaItem(
             title = context.getString(org.fossify.commons.R.string.root),
             mediaId = SMP_ROOT_ID,
@@ -198,56 +194,59 @@ internal class MediaItemProvider(private val context: Context) {
         addNodeAndChildren(item = root, children = rootChildren)
     }
 
-    private fun buildPlaylists() = with(audioHelper) {
-        getAllPlaylists().forEach { playlist ->
-            addNodeAndChildren(SMP_PLAYLISTS_ROOT_ID, playlist.toMediaItem(), getPlaylistTracks(playlist.id).map { it.toMediaItem() })
+    private fun LibraryTree.buildPlaylists() = with(audioHelper) {
+        for (batch in getAllPlaylists().chunked(128)) {
+            val tracksById = getPlaylistTracksById(batch.map { it.id })
+            for (playlist in batch) {
+                addNodeAndChildren(SMP_PLAYLISTS_ROOT_ID, playlist.toMediaItem(), tracksById[playlist.id].orEmpty().map { it.toMediaItem() })
+            }
         }
     }
 
-    private fun buildFolders() = with(audioHelper) {
+    private fun LibraryTree.buildFolders() = with(audioHelper) {
         getAllFolders().forEach { folder ->
             addNodeAndChildren(SMP_FOLDERS_ROOT_ID, folder.toMediaItem(), getFolderTracks(folder.title).map { it.toMediaItem() })
         }
     }
 
-    private fun buildArtists() = with(audioHelper) {
+    private fun LibraryTree.buildArtists() = with(audioHelper) {
         getAllArtists().forEach { artist ->
             addNodeAndChildren(SMP_ARTISTS_ROOT_ID, artist.toMediaItem(), getArtistAlbums(artist.id).map { it.toMediaItem() })
         }
     }
 
-    private fun buildAlbums() = with(audioHelper) {
+    private fun LibraryTree.buildAlbums() = with(audioHelper) {
         getAllAlbums().forEach { album ->
             addNodeAndChildren(SMP_ALBUMS_ROOT_ID, album.toMediaItem(), getAlbumTracks(album.id).map { it.toMediaItem() })
         }
     }
 
-    private fun buildTracks() = with(audioHelper) {
+    private fun LibraryTree.buildTracks() = with(audioHelper) {
         getAllTracks().forEach { track ->
             addNodeAndChildren(SMP_TRACKS_ROOT_ID, track.toMediaItem())
             titleMap[track.title.lowercase()] = MediaItemNode(track.toMediaItem())
         }
     }
 
-    private fun buildGenres() = with(audioHelper) {
+    private fun LibraryTree.buildGenres() = with(audioHelper) {
         getAllGenres().forEach { genre ->
             addNodeAndChildren(SMP_GENRES_ROOT_ID, genre.toMediaItem(), getGenreTracks(genre.id).map { it.toMediaItem() })
         }
     }
 
-    private fun getNode(id: String) = treeNodes[id]
+    private fun getNode(id: String) = tree.treeNodes[id]
 
-    private fun addNodeAndChildren(parentId: String? = null, item: MediaItem, children: List<MediaItem>? = null) {
+    private fun LibraryTree.addNodeAndChildren(parentId: String? = null, item: MediaItem, children: List<MediaItem>? = null) {
         val itemNode = MediaItemNode(item)
         treeNodes[item.mediaId] = itemNode
 
         children?.forEach { child ->
             treeNodes[child.mediaId] = MediaItemNode(child)
-            itemNode.addChild(child.mediaId)
+            itemNode.addChild(child)
         }
 
         if (parentId != null) {
-            getNode(parentId)?.addChild(item.mediaId)
+            treeNodes[parentId]?.addChild(item)
         }
     }
 

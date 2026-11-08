@@ -10,7 +10,7 @@ import org.fossify.musicplayer.interfaces.*
 import org.fossify.musicplayer.models.*
 import org.fossify.musicplayer.objects.MyExecutor
 
-@Database(entities = [Track::class, Playlist::class, QueueItem::class, Artist::class, Album::class, Genre::class], version = 15)
+@Database(entities = [Track::class, Playlist::class, QueueItem::class, Artist::class, Album::class, Genre::class], version = 16)
 abstract class SongsDatabase : RoomDatabase() {
 
     abstract fun SongsDao(): SongsDao
@@ -26,7 +26,7 @@ abstract class SongsDatabase : RoomDatabase() {
     abstract fun GenresDao(): GenresDao
 
     companion object {
-        private var db: SongsDatabase? = null
+        @Volatile private var db: SongsDatabase? = null
 
         fun getInstance(context: Context): SongsDatabase {
             if (db == null) {
@@ -48,6 +48,7 @@ abstract class SongsDatabase : RoomDatabase() {
                             .addMigrations(MIGRATION_12_13)
                             .addMigrations(MIGRATION_13_14)
                             .addMigrations(MIGRATION_14_15)
+                            .addMigrations(MIGRATION_15_16)
                             .build()
                     }
                 }
@@ -209,6 +210,14 @@ abstract class SongsDatabase : RoomDatabase() {
                 database.apply {
                     execSQL("ALTER TABLE tracks ADD COLUMN disc_number INTEGER DEFAULT NULL")
                 }
+            }
+        }
+
+        // The unique index begins with media_store_id. Queries by playlist alone need
+        // their own leading column to avoid scanning every membership in the library.
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_playlist_id ON tracks(playlist_id)")
             }
         }
 

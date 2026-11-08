@@ -1,8 +1,6 @@
-<!-- Recreate this single page when its geometry changes. An existing launcher flipper can
-     otherwise keep its previously displayed child when switching back to a cached adapter. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent">
-    <AdapterViewFlipper android:id="@+id/widget_playlist_rows" android:autoStart="false"
+    <ListView android:id="@+id/widget_playlist_rows" android:divider="@null" android:dividerHeight="0dp" android:scrollbars="none" android:overScrollMode="never"
         android:layout_width="match_parent" android:layout_height="match_parent" />
     <TextView android:id="@+id/widget_playlist_empty" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:text="@string/widget_playlist_empty" />

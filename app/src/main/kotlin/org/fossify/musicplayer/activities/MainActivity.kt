@@ -33,7 +33,6 @@ import org.fossify.musicplayer.playback.CustomCommands
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
-import java.io.FileOutputStream
 
 class MainActivity : SimpleMusicActivity() {
     private val PICK_IMPORT_SOURCE_INTENT = 1
@@ -341,12 +340,8 @@ class MainActivity : SimpleMusicActivity() {
             getFolderTracks(path, true) { tracks ->
                 runOnUiThread {
                     NewPlaylistDialog(this) { playlistId ->
-                        tracks.forEach {
-                            it.playListId = playlistId
-                        }
-
                         ensureBackgroundThread {
-                            audioHelper.insertTracks(tracks)
+                            audioHelper.copyToPlaylist(playlistId, tracks)
                             EventBus.getDefault().post(Events.PlaylistsUpdated())
                         }
                     }
@@ -365,23 +360,7 @@ class MainActivity : SimpleMusicActivity() {
     private fun tryImportPlaylistFromFile(uri: Uri) {
         when {
             uri.scheme == "file" -> showImportPlaylistDialog(uri.path!!)
-            uri.scheme == "content" -> {
-                val tempFile = getTempFile("imports", uri.path!!.getFilenameFromPath())
-                if (tempFile == null) {
-                    toast(org.fossify.commons.R.string.unknown_error_occurred)
-                    return
-                }
-
-                try {
-                    val inputStream = contentResolver.openInputStream(uri)
-                    val out = FileOutputStream(tempFile)
-                    inputStream!!.copyTo(out)
-
-                    showImportPlaylistDialog(tempFile.absolutePath)
-                } catch (e: Exception) {
-                    showErrorToast(e)
-                }
-            }
+            uri.scheme == "content" -> showImportPlaylistDialog(uri.toString())
 
             else -> toast(org.fossify.commons.R.string.invalid_file_format)
         }
@@ -437,7 +416,7 @@ class MainActivity : SimpleMusicActivity() {
                         }
                     )
 
-                    getAdapter()?.getPlaylistsFragment()?.setupFragment(this)
+                    if (result != ImportResult.IMPORT_FAIL) EventBus.getDefault().post(Events.PlaylistsUpdated())
                 }
             }.importPlaylist(path, id)
         }

@@ -14,7 +14,7 @@ import org.fossify.musicplayer.adapters.PlaylistsAdapter
 import org.fossify.musicplayer.databinding.FragmentPlaylistsBinding
 import org.fossify.musicplayer.dialogs.ChangeSortingDialog
 import org.fossify.musicplayer.dialogs.NewPlaylistDialog
-import org.fossify.musicplayer.extensions.audioHelper
+import org.fossify.musicplayer.extensions.playlistDAO
 import org.fossify.musicplayer.extensions.config
 import org.fossify.musicplayer.extensions.mediaScanner
 import org.fossify.musicplayer.extensions.viewBinding
@@ -26,6 +26,8 @@ import org.fossify.musicplayer.models.sortSafely
 import org.greenrobot.eventbus.EventBus
 
 class PlaylistsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerFragment(context, attributeSet) {
+    private var refreshGeneration = 0
+    private var searchText = ""
     private var playlists = ArrayList<Playlist>()
     private val binding by viewBinding(FragmentPlaylistsBinding::bind)
 
@@ -37,16 +39,15 @@ class PlaylistsFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
             }
         }
 
+        val generation = ++refreshGeneration
         ensureBackgroundThread {
-            val playlists = context.audioHelper.getAllPlaylists()
-            playlists.forEach {
-                it.trackCount = context.audioHelper.getPlaylistTrackCount(it.id)
+            val playlists = context.playlistDAO.summaries().mapTo(ArrayList()) { summary ->
+                summary.playlist.apply { trackCount = summary.songCount }
             }
-
             playlists.sortSafely(context.config.playlistSorting)
-            this.playlists = playlists
-
             activity.runOnUiThread {
+                if (generation != refreshGeneration || activity.isDestroyed || activity.isFinishing) return@runOnUiThread
+                this.playlists = playlists
                 val scanning = activity.mediaScanner.isScanning()
                 binding.playlistsPlaceholder.text = if (scanning) {
                     context.getString(R.string.loading_files)
@@ -75,6 +76,7 @@ class PlaylistsFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
                     // A cover can change without the playlist title or track count changing.
                     (adapter as PlaylistsAdapter).updateItems(playlists, forceUpdate = true)
                 }
+                if (searchText.isNotEmpty()) onSearchQueryChanged(searchText)
             }
         }
     }
@@ -84,6 +86,7 @@ class PlaylistsFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
     }
 
     override fun onSearchQueryChanged(text: String) {
+        searchText = text
         val normalizedText = text.normalizeString()
         val filtered = playlists.filter {
             it.title.normalizeString().contains(normalizedText, true)
@@ -94,6 +97,7 @@ class PlaylistsFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
     }
 
     override fun onSearchClosed() {
+        searchText = ""
         getAdapter()?.updateItems(playlists)
         binding.playlistsPlaceholder.beGoneIf(playlists.isNotEmpty())
         binding.playlistsPlaceholder2.beGoneIf(playlists.isNotEmpty())

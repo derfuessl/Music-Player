@@ -115,40 +115,64 @@ abstract class SimpleControllerActivity : SimpleActivity(), Player.Listener {
     }
 
     fun deleteTracks(tracks: List<Track>, callback: () -> Unit) {
-        try {
-            audioHelper.deleteTracks(tracks)
-            audioHelper.removeInvalidAlbumsArtists()
-        } catch (ignored: Exception) {
+        if (tracks.isEmpty()) {
+            runOnUiThread(callback)
+            return
         }
-
+        val original = tracks.distinctBy { it.mediaStoreId to it.path }
         val contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        maybeRescanTrackPaths(tracks) { tracksToDelete ->
-            if (tracksToDelete.isNotEmpty()) {
-                if (isRPlus()) {
-                    val uris = tracksToDelete.map { ContentUris.withAppendedId(contentUri, it.mediaStoreId) }
-                    deleteSDK30Uris(uris) { success ->
-                        if (success) {
-                            removeQueueItems(tracksToDelete)
-                            EventBus.getDefault().post(Events.RefreshFragments())
-                            callback()
-                        } else {
-                            toast(org.fossify.commons.R.string.unknown_error_occurred)
-                        }
+        // A rescan may replace a manual track's synthetic ID. Keep both identities and
+        // leave the caller's objects untouched if Android denies the deletion request.
+        maybeRescanTrackPaths(original.map { it.copy() }) { resolved ->
+            val pairs = original.zip(resolved)
+            fun recordDeleted(deleted: List<Pair<Track, Track>>, next: () -> Unit) {
+                ensureBackgroundThread {
+                    val affected = deleted.flatMap { listOf(it.first, it.second) }.distinctBy { it.mediaStoreId }
+                    getTracksDB().runInTransaction {
+                        audioHelper.deleteTracks(affected)
+                        audioHelper.removeInvalidAlbumsArtists()
                     }
-                } else {
-                    tracksToDelete.forEach { track ->
-                        try {
-                            val where = "${MediaStore.Audio.Media._ID} = ?"
-                            val args = arrayOf(track.mediaStoreId.toString())
-                            contentResolver.delete(contentUri, where, args)
-                            File(track.path).delete()
-                        } catch (ignored: Exception) {
-                        }
+                    runOnUiThread {
+                        removeQueueItems(affected)
+                        EventBus.getDefault().post(Events.RefreshFragments())
+                        next()
                     }
+                }
+            }
 
-                    removeQueueItems(tracksToDelete)
-                    EventBus.getDefault().post(Events.RefreshFragments())
-                    callback()
+            if (isRPlus()) {
+                if (resolved.any { it.mediaStoreId <= 0 }) {
+                    toast(org.fossify.commons.R.string.unknown_error_occurred)
+                    return@maybeRescanTrackPaths
+                }
+                val batches = pairs.chunked(1000).iterator()
+                fun requestNextBatch() {
+                    if (!batches.hasNext()) {
+                        callback()
+                        return
+                    }
+                    val batch = batches.next()
+                    val uris = batch.map { ContentUris.withAppendedId(contentUri, it.second.mediaStoreId) }.distinct()
+                    deleteSDK30Uris(uris) { approved ->
+                        if (approved) recordDeleted(batch, ::requestNextBatch)
+                    }
+                }
+                runOnUiThread { requestNextBatch() }
+            } else {
+                ensureBackgroundThread {
+                    val deleted = pairs.filter { (_, track) ->
+                        try {
+                            val removed = contentResolver.delete(contentUri, "${MediaStore.Audio.Media._ID} = ?",
+                                arrayOf(track.mediaStoreId.toString()))
+                            File(track.path).delete() || removed > 0
+                        } catch (ignored: Exception) {
+                            false
+                        }
+                    }
+                    recordDeleted(deleted) {
+                        if (deleted.size == pairs.size) callback()
+                        else toast(org.fossify.commons.R.string.unknown_error_occurred)
+                    }
                 }
             }
         }

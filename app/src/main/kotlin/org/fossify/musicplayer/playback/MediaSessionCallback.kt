@@ -209,7 +209,7 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
         startIndex: Int,
         startPositionMs: Long
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-        if (controller.packageName == packageName) {
+        if (mediaItems.isEmpty() || controller.packageName == packageName) {
             return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
         }
 
@@ -241,9 +241,9 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
                 playlistDAO.getPlaylistWithId(playlistId)
             } else null
             val artwork = playlist?.let { PlaylistArtwork.notificationUri(this@getMediaSessionCallback, it.id) }
-            val items = mediaItems.map { mediaItem ->
+            val items = mediaItems.mapNotNull { mediaItem ->
                 val resolved = if (mediaItem.requestMetadata.searchQuery != null) {
-                    getMediaItemFromSearchQuery(mediaItem.requestMetadata.searchQuery!!)
+                    getMediaItemFromSearchQuery(mediaItem.requestMetadata.searchQuery!!) ?: return@mapNotNull null
                 } else {
                     mediaItemProvider[mediaItem.mediaId] ?: mediaItem
                 }
@@ -263,7 +263,7 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
         }
     }
 
-    private fun getMediaItemFromSearchQuery(query: String): MediaItem {
+    private fun getMediaItemFromSearchQuery(query: String): MediaItem? {
         return mediaItemProvider.getItemFromSearch(query.lowercase()) ?: mediaItemProvider.getRandomItem()
     }
 
