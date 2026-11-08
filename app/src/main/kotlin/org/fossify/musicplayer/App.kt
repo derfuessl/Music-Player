@@ -17,6 +17,12 @@ class App : Application() {
         checkUseEnglish()
         EventBus.getDefault().register(this)
         initController()
+        PlaylistListWidget.refreshMetrics(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        PlaylistListWidget.refreshMetrics(this)
     }
 
     // A playlist can be edited directly from a home-screen widget without opening MainActivity.

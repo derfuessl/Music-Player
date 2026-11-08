@@ -1,4 +1,5 @@
 <resources>
     <!-- Keep scrolling content inside the rounded panel, even with the heading hidden. -->
     <dimen name="widget_playlist_content_inset">6dp</dimen>
+    <dimen name="widget_tile_width">76dp</dimen>
 </resources>

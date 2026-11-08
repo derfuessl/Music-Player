@@ -19,6 +19,7 @@ import org.fossify.musicplayer.extensions.playlistDAO
 import java.util.concurrent.Executors
 import org.fossify.musicplayer.helpers.PlaylistListWidget
 import org.fossify.musicplayer.helpers.PlaylistTileWidget
+import org.fossify.musicplayer.helpers.PlaylistWidgetSize
 import org.fossify.musicplayer.helpers.WidgetPlaylistIndex
 
 /** Android calls the same screen for placement and later reconfiguration. Keep all changes
@@ -56,7 +57,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
             val playlists = WidgetPlaylistIndex(playlistDAO.widgetPlaylists(Int.MAX_VALUE))
             runOnUiThread {
                 val title = if (provider is PlaylistTileWidget) R.string.widget_playlist_tiles else R.string.widget_playlist_label
-                if (!isFinishing && !isDestroyed) showSettings(playlists, title) {
+                if (!isFinishing && !isDestroyed) showSettings(playlists, title, id, provider is PlaylistTileWidget) {
                     val editor = prefs.edit().putInt("color:$id", color).putInt("transparency:$id", transparency)
                         .putBoolean("heading:$id", heading)
                     if (automatic) editor.remove(id.toString()) else editor.putStringSet(id.toString(), selected.toSet())
@@ -69,7 +70,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         }
     }
 
-    private fun showSettings(playlists: WidgetPlaylistIndex, title: Int, save: () -> Unit) {
+    private fun showSettings(playlists: WidgetPlaylistIndex, title: Int, id: Int, tiled: Boolean, save: () -> Unit) {
         val pad = (20 * resources.displayMetrics.density).toInt()
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -86,6 +87,15 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
             setSelection(text.length)
         }
         panel.addView(search)
+        val visibleCount = TextView(this)
+        panel.addView(visibleCount)
+        val sizes = PlaylistWidgetSize(this, tiled)
+        val bounds = sizes.current(AppWidgetManager.getInstance(this).getAppWidgetOptions(id))
+        fun updateCount() {
+            val capacity = sizes.grid(bounds, heading).capacity
+            visibleCount.text = getString(R.string.widget_visible_count,
+                minOf(selected.size, capacity), selected.size, capacity)
+        }
         val empty = TextView(this).apply { setText(R.string.widget_search_empty); visibility = View.GONE }
         panel.addView(empty)
         val list = ListView(this)
@@ -129,7 +139,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         column.addView(CheckBox(this).apply {
             setText(R.string.widget_show_title)
             isChecked = heading
-            setOnCheckedChangeListener { _, value -> heading = value }
+            setOnCheckedChangeListener { _, value -> heading = value; updateCount() }
         })
         column.addView(TextView(this).apply { text = getString(R.string.widget_playlist_limit, PlaylistListWidget.LIMIT) })
         val auto = CheckBox(this).apply { setText(R.string.widget_playlist_auto); isChecked = automatic }
@@ -143,6 +153,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
             playlists.rows.take(PlaylistListWidget.LIMIT).forEach { selected.add(it.key) }
         }
         if (automatic) selectDefaults()
+        updateCount()
         var matches = if (query.isBlank()) playlists.rows else emptyList()
         val adapter = object : BaseAdapter() {
             override fun getCount() = matches.size
@@ -165,6 +176,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
                             automatic = false
                             auto.isChecked = false
                             if (isChecked) selected.add(row.key) else selected.remove(row.key)
+                            updateCount()
                         }
                     }
                 }
@@ -174,6 +186,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         auto.setOnClickListener {
             automatic = auto.isChecked
             if (automatic) { selectDefaults(); adapter.notifyDataSetChanged() }
+            updateCount()
         }
         var generation = 0
         fun filter(text: String) {
