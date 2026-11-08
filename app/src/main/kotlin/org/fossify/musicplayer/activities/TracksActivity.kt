@@ -321,9 +321,7 @@ class TracksActivity : SimpleMusicActivity() {
             }
 
             if (track != null) {
-                track.id = 0
-                track.playListId = playlist!!.id
-                audioHelper.insertTracks(listOf(track))
+                audioHelper.copyToPlaylist(playlist!!.id, listOf(track))
                 refreshPlaylist()
             }
         }
@@ -333,11 +331,7 @@ class TracksActivity : SimpleMusicActivity() {
         FilePickerDialog(this, pickFile = false, enforceStorageRestrictions = false) {
             ensureBackgroundThread {
                 getFolderTracks(it, true) { tracks ->
-                    tracks.forEach {
-                        it.playListId = playlist!!.id
-                    }
-
-                    audioHelper.insertTracks(tracks)
+                    audioHelper.copyToPlaylist(playlist!!.id, tracks)
                     refreshPlaylist()
                 }
             }

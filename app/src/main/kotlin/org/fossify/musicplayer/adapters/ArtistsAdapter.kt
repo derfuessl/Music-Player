@@ -63,7 +63,6 @@ class ArtistsAdapter(activity: BaseSimpleActivity, items: ArrayList<Artist>, rec
                 val positions = selectedArtists.mapNotNull { artist -> items.indexOfFirstOrNull { it.id == artist.id } } as ArrayList<Int>
                 val tracks = context.audioHelper.getArtistTracks(selectedArtists)
 
-                context.audioHelper.deleteArtists(selectedArtists)
                 context.deleteTracks(tracks) {
                     context.runOnUiThread {
                         positions.sortDescending()

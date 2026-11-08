@@ -61,9 +61,9 @@ open class PlaylistListWidget : AppWidgetProvider() {
             val adapter = Intent(context, PlaylistListService::class.java)
                 .setData(Uri.withAppendedPath(identity, "${grid.columns}-${grid.capacity}"))
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-                .putExtra(TILED, tiled).putExtra(COLUMNS, grid.columns).putExtra(CAPACITY, grid.capacity)
+                .putExtra(TILED, tiled).putExtra(CAPACITY, grid.capacity)
             removeAllViews(R.id.widget_playlist_collection)
-            addView(R.id.widget_playlist_collection, RemoteViews(context.packageName, R.layout.widget_playlist_collection))
+            addView(R.id.widget_playlist_collection, RemoteViews(context.packageName, if (tiled) R.layout.widget_playlist_tile_collection else R.layout.widget_playlist_collection))
             setRemoteAdapter(R.id.widget_playlist_rows, adapter)
             setTextViewText(R.id.widget_playlist_empty, context.getString(
                 if (grid.capacity == 0) R.string.widget_enlarge else R.string.widget_playlist_empty))
@@ -89,7 +89,6 @@ open class PlaylistListWidget : AppWidgetProvider() {
     companion object {
         const val LIMIT = PlaylistWidgetGrid.LIMIT
         internal const val TILED = "playlist_widget_tiled"
-        internal const val COLUMNS = "playlist_widget_columns"
         internal const val CAPACITY = "playlist_widget_capacity"
         const val DEFAULT_COLOR = 0xFFF6F5FC.toInt()
         fun textColor(color: Int) = if (ColorUtils.calculateLuminance(color) > 0.179) Color.BLACK else Color.WHITE
@@ -123,23 +122,21 @@ class PlaylistTileWidget : PlaylistListWidget() {
     override val tiled = true
 }
 
-/** Android binds the factory on demand. Returning a single, non-flipping page keeps all
- * complete rows visible. Repeated host requests reuse the page until its data changes. */
+/** Each playlist is a direct collection item so launchers can deliver its cover and title clicks. */
 class PlaylistListService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
         val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         val tiled = intent.getBooleanExtra(PlaylistListWidget.TILED, false)
-        val columns = intent.getIntExtra(PlaylistListWidget.COLUMNS, 1).coerceIn(1, PlaylistListWidget.LIMIT)
         val capacity = intent.getIntExtra(PlaylistListWidget.CAPACITY, 1).coerceIn(0, PlaylistListWidget.LIMIT)
         val prefs = PlaylistListWidget.preferences(this)
         return object : RemoteViewsFactory {
             private var items: List<Playlist> = emptyList()
-            private var cachedPage: RemoteViews? = null
+            private val cells = mutableMapOf<Int, RemoteViews>()
             override fun onCreate() {}
-            override fun onDestroy() { cachedPage = null; items = emptyList() }
+            override fun onDestroy() { cells.clear(); items = emptyList() }
             override fun onDataSetChanged() {
                 // Reload only visible rows and artwork. The twelve stored IDs stay intact.
-                cachedPage = null
+                cells.clear()
                 val selected = prefs.getStringSet(widgetId.toString(), null)
                 items = when {
                     capacity == 0 -> emptyList()
@@ -149,24 +146,17 @@ class PlaylistListService : RemoteViewsService() {
                 }
             }
 
-            override fun getCount() = if (items.isEmpty()) 0 else 1
+            override fun getCount() = items.size
             override fun getViewTypeCount() = 1
             override fun hasStableIds() = true
-            override fun getItemId(position: Int) = position.toLong()
+            override fun getItemId(position: Int) = items.getOrNull(position)?.id?.toLong() ?: -1L
             override fun getLoadingView(): RemoteViews? = null
             override fun getViewAt(position: Int): RemoteViews? {
-                if (position != 0 || items.isEmpty()) return null
-                cachedPage?.let { return it }
-                val color = PlaylistListWidget.textColor(prefs.getInt("color:$widgetId", PlaylistListWidget.DEFAULT_COLOR))
-                return RemoteViews(packageName, R.layout.widget_playlist_page).apply {
-                    removeAllViews(R.id.widget_playlist_page)
-                    for (row in items.chunked(columns)) {
-                        val band = RemoteViews(packageName, R.layout.widget_playlist_band)
-                        band.removeAllViews(R.id.widget_playlist_band)
-                        row.forEach { band.addView(R.id.widget_playlist_band, cell(it, tiled, color)) }
-                        addView(R.id.widget_playlist_page, band)
-                    }
-                }.also { cachedPage = it }
+                val playlist = items.getOrNull(position) ?: return null
+                return cells.getOrPut(playlist.id) {
+                    val color = prefs.getInt("color:$widgetId", PlaylistListWidget.DEFAULT_COLOR)
+                    cell(playlist, tiled, PlaylistListWidget.textColor(color))
+                }
             }
         }
     }
@@ -178,7 +168,7 @@ class PlaylistListService : RemoteViewsService() {
             val art = PlaylistArtwork.loadPlaylist(applicationContext, playlist.id)
             if (art == null) setImageViewResource(R.id.widget_playlist_picture, R.drawable.ic_playlist_vector)
             else {
-                // All twelve images travel in one page. Bound their combined bitmap footprint.
+                // Keep the cached thumbnails small on memory-constrained launchers.
                 val pixels = if (tiled) 128 else 80
                 setImageViewBitmap(R.id.widget_playlist_picture, Bitmap.createScaledBitmap(art, pixels, pixels, true))
             }
