@@ -13,9 +13,7 @@
             android:text="@string/widget_playlist_title" android:textSize="16sp" android:textStyle="bold" />
         <!-- One full-height page holds every selected playlist. The host still loads artwork
              on its RemoteViewsFactory worker, while the widget itself cannot scroll or page. -->
-        <AdapterViewFlipper android:id="@+id/widget_playlist_rows" android:autoStart="false"
+        <FrameLayout android:id="@+id/widget_playlist_collection"
             android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
-        <TextView android:id="@+id/widget_playlist_empty" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:text="@string/widget_playlist_empty" />
     </LinearLayout>
 </FrameLayout>

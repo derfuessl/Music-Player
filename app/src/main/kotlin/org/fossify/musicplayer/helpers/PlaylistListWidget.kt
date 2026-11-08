@@ -11,7 +11,6 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
@@ -36,26 +35,23 @@ open class PlaylistListWidget : AppWidgetProvider() {
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
         manager.updateAppWidget(id, sizedViews(context, id, options))
+        manager.notifyAppWidgetViewDataChanged(id, R.id.widget_playlist_rows)
     }
 
     private fun sizedViews(context: Context, id: Int, options: Bundle): RemoteViews {
-        // Modern launchers supply the actual size for each orientation. Older ones supply
-        // the extrema, where portrait is the narrower and taller of the two layouts.
-        if (Build.VERSION.SDK_INT >= 31) {
-            val sizes = options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
-                .orEmpty().distinct().filter { it.width > 0 && it.height > 0 }
-            if (sizes.size in 1..16) {
-                return RemoteViews(sizes.associateWith { panel(context, id, it.width.toInt()) })
-            }
-        }
-        val narrow = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
-        val wide = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, narrow)
-        return RemoteViews(panel(context, id, wide), panel(context, id, narrow))
-    }
-
-    private fun panel(context: Context, id: Int, width: Int): RemoteViews {
+        val sizes = PlaylistWidgetSize(context, tiled)
         val prefs = preferences(context)
         val heading = prefs.getBoolean("heading:$id", false)
+        fun build(size: android.util.SizeF) = panel(context, id, sizes.grid(size, heading), heading)
+        val exact = sizes.exact(options)
+        if (Build.VERSION.SDK_INT >= 31 && exact.isNotEmpty()) {
+            return RemoteViews(exact.associateWith(::build))
+        }
+        return RemoteViews(build(sizes.legacy(options, true)), build(sizes.legacy(options, false)))
+    }
+
+    private fun panel(context: Context, id: Int, grid: PlaylistWidgetGrid, heading: Boolean): RemoteViews {
+        val prefs = preferences(context)
         val color = prefs.getInt("color:$id", DEFAULT_COLOR)
         val transparency = prefs.getInt("transparency:$id", 0)
         val identity = Uri.parse("playlist-widget://instance/$id")
@@ -63,10 +59,14 @@ open class PlaylistListWidget : AppWidgetProvider() {
             // Extras alone do not distinguish adapter factories. Include the geometry in
             // the identity so a rotation or resize cannot reuse stale column counts.
             val adapter = Intent(context, PlaylistListService::class.java)
-                .setData(Uri.withAppendedPath(identity, width.toString()))
+                .setData(Uri.withAppendedPath(identity, "${grid.columns}-${grid.capacity}"))
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-                .putExtra(TILED, tiled).putExtra(WIDTH, width)
+                .putExtra(TILED, tiled).putExtra(COLUMNS, grid.columns).putExtra(CAPACITY, grid.capacity)
+            removeAllViews(R.id.widget_playlist_collection)
+            addView(R.id.widget_playlist_collection, RemoteViews(context.packageName, R.layout.widget_playlist_collection))
             setRemoteAdapter(R.id.widget_playlist_rows, adapter)
+            setTextViewText(R.id.widget_playlist_empty, context.getString(
+                if (grid.capacity == 0) R.string.widget_enlarge else R.string.widget_playlist_empty))
             setEmptyView(R.id.widget_playlist_rows, R.id.widget_playlist_empty)
             setInt(R.id.widget_playlist_panel, "setColorFilter", color)
             setInt(R.id.widget_playlist_panel, "setImageAlpha", (100 - transparency) * 255 / 100)
@@ -89,10 +89,26 @@ open class PlaylistListWidget : AppWidgetProvider() {
     companion object {
         const val LIMIT = PlaylistWidgetGrid.LIMIT
         internal const val TILED = "playlist_widget_tiled"
-        internal const val WIDTH = "playlist_widget_width"
+        internal const val COLUMNS = "playlist_widget_columns"
+        internal const val CAPACITY = "playlist_widget_capacity"
         const val DEFAULT_COLOR = 0xFFF6F5FC.toInt()
         fun textColor(color: Int) = if (ColorUtils.calculateLuminance(color) > 0.179) Color.BLACK else Color.WHITE
         fun preferences(context: Context) = context.getSharedPreferences("playlist_list_widgets", Context.MODE_PRIVATE)
+        // The host can re-inflate old RemoteViews with a new system font size. Recalculate
+        // capacity as well, even if the previous app process was killed during that change.
+        fun refreshMetrics(context: Context) {
+            val config = context.resources.configuration
+            val signature = "${config.densityDpi}:${config.fontScale}:${config.locales.toLanguageTags()}"
+            val prefs = preferences(context)
+            if (prefs.getString("layoutMetrics", null) == signature) return
+            prefs.edit().putString("layoutMetrics", signature).apply()
+            val manager = AppWidgetManager.getInstance(context)
+            for (provider in listOf(PlaylistListWidget(), PlaylistTileWidget())) {
+                val ids = manager.getAppWidgetIds(ComponentName(context, provider.javaClass))
+                if (ids.isNotEmpty()) provider.onUpdate(context, manager, ids)
+            }
+        }
+
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             for (provider in listOf(PlaylistListWidget::class.java, PlaylistTileWidget::class.java)) {
@@ -108,23 +124,28 @@ class PlaylistTileWidget : PlaylistListWidget() {
 }
 
 /** Android binds the factory on demand. Returning a single, non-flipping page keeps all
- * playlists visible and lets the launcher measure each weighted row against its real bounds. */
+ * complete rows visible. Repeated host requests reuse the page until its data changes. */
 class PlaylistListService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
         val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         val tiled = intent.getBooleanExtra(PlaylistListWidget.TILED, false)
-        val width = intent.getIntExtra(PlaylistListWidget.WIDTH, 180)
+        val columns = intent.getIntExtra(PlaylistListWidget.COLUMNS, 1).coerceIn(1, PlaylistListWidget.LIMIT)
+        val capacity = intent.getIntExtra(PlaylistListWidget.CAPACITY, 1).coerceIn(0, PlaylistListWidget.LIMIT)
         val prefs = PlaylistListWidget.preferences(this)
         return object : RemoteViewsFactory {
             private var items: List<Playlist> = emptyList()
+            private var cachedPage: RemoteViews? = null
             override fun onCreate() {}
-            override fun onDestroy() { items = emptyList() }
+            override fun onDestroy() { cachedPage = null; items = emptyList() }
             override fun onDataSetChanged() {
+                // Reload only visible rows and artwork. The twelve stored IDs stay intact.
+                cachedPage = null
                 val selected = prefs.getStringSet(widgetId.toString(), null)
                 items = when {
-                    selected == null -> playlistDAO.widgetPlaylists(PlaylistListWidget.LIMIT)
+                    capacity == 0 -> emptyList()
+                    selected == null -> playlistDAO.widgetPlaylists(capacity)
                     selected.isEmpty() -> emptyList()
-                    else -> playlistDAO.widgetPlaylistsById(selected.mapNotNull(String::toIntOrNull), PlaylistListWidget.LIMIT)
+                    else -> playlistDAO.widgetPlaylistsById(selected.mapNotNull(String::toIntOrNull), capacity)
                 }
             }
 
@@ -135,7 +156,7 @@ class PlaylistListService : RemoteViewsService() {
             override fun getLoadingView(): RemoteViews? = null
             override fun getViewAt(position: Int): RemoteViews? {
                 if (position != 0 || items.isEmpty()) return null
-                val columns = PlaylistWidgetGrid.columns(tiled, width)
+                cachedPage?.let { return it }
                 val color = PlaylistListWidget.textColor(prefs.getInt("color:$widgetId", PlaylistListWidget.DEFAULT_COLOR))
                 return RemoteViews(packageName, R.layout.widget_playlist_page).apply {
                     removeAllViews(R.id.widget_playlist_page)
@@ -143,13 +164,9 @@ class PlaylistListService : RemoteViewsService() {
                         val band = RemoteViews(packageName, R.layout.widget_playlist_band)
                         band.removeAllViews(R.id.widget_playlist_band)
                         row.forEach { band.addView(R.id.widget_playlist_band, cell(it, tiled, color)) }
-                        // Reserve unused columns in the final row so text and covers stay aligned.
-                        repeat(columns - row.size) {
-                            band.addView(R.id.widget_playlist_band, RemoteViews(packageName, R.layout.widget_playlist_spacer))
-                        }
                         addView(R.id.widget_playlist_page, band)
                     }
-                }
+                }.also { cachedPage = it }
             }
         }
     }

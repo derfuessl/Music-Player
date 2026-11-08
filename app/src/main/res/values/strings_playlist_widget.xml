@@ -15,4 +15,6 @@
     <string name="widget_playlist_tiles">Playlist tiles</string>
     <string name="widget_search">Search playlists</string>
     <string name="widget_search_empty">No matching playlists</string>
+    <string name="widget_visible_count">Visible at this size: %1$d of %2$d selected playlists (capacity: %3$d).</string>
+    <string name="widget_enlarge">Enlarge widget</string>
 </resources>

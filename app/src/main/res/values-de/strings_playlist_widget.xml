@@ -15,4 +15,6 @@
     <string name="widget_playlist_tiles">Playlist-Kacheln</string>
     <string name="widget_search">Playlists suchen</string>
     <string name="widget_search_empty">Keine passenden Playlists</string>
+    <string name="widget_visible_count">Bei dieser Größe sichtbar: %1$d von %2$d ausgewählten Playlists (Platz für %3$d).</string>
+    <string name="widget_enlarge">Widget vergrößern</string>
 </resources>
