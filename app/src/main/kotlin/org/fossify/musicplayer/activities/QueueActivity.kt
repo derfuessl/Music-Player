@@ -1,5 +1,7 @@
 package org.fossify.musicplayer.activities
 
+import org.greenrobot.eventbus.EventBus
+import org.fossify.musicplayer.models.Events
 import android.app.SearchManager
 import android.content.Context
 import android.os.Bundle
@@ -20,7 +22,6 @@ import org.fossify.musicplayer.adapters.QueueAdapter
 import org.fossify.musicplayer.databinding.ActivityQueueBinding
 import org.fossify.musicplayer.dialogs.NewPlaylistDialog
 import org.fossify.musicplayer.extensions.*
-import org.fossify.musicplayer.helpers.RoomHelper
 import org.fossify.musicplayer.models.Track
 
 class QueueActivity : SimpleControllerActivity() {
@@ -161,14 +162,10 @@ class QueueActivity : SimpleControllerActivity() {
 
     private fun createPlaylistFromQueue() {
         NewPlaylistDialog(this) { newPlaylistId ->
-            val tracks = ArrayList<Track>()
-            getAdapter()?.items?.forEach {
-                it.playListId = newPlaylistId
-                tracks.add(it)
-            }
-
+            val tracks = getAdapter()?.items?.toList().orEmpty()
             ensureBackgroundThread {
-                RoomHelper(this).insertTracksWithPlaylist(tracks)
+                audioHelper.copyToPlaylist(newPlaylistId, tracks)
+                EventBus.getDefault().post(Events.PlaylistsUpdated())
             }
         }
     }

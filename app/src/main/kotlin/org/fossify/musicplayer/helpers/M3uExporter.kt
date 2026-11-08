@@ -39,8 +39,6 @@ class M3uExporter(val activity: BaseSimpleActivity) {
         } catch (e: Exception) {
             failedEvents++
             activity.showErrorToast(e)
-        } finally {
-            outputStream.close()
         }
 
         callback(

@@ -16,7 +16,7 @@ import android.widget.ImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import org.fossify.musicplayer.R
-import org.fossify.musicplayer.extensions.audioHelper
+import org.fossify.musicplayer.extensions.tracksDAO
 import org.fossify.musicplayer.extensions.playlistDAO
 import org.fossify.musicplayer.models.Track
 import java.io.File
@@ -196,7 +196,7 @@ object PlaylistArtwork {
             } else null
         } } catch (ignored: Exception) { null }
         if (custom != null) return custom
-        val tracks = context.audioHelper.getPlaylistTracks(playlistId).sortedWith(compareBy({ it.mediaStoreId }, { it.path }))
+        val tracks = context.tracksDAO.getTracksFromPlaylist(playlistId).sortedWith(compareBy({ it.mediaStoreId }, { it.path }))
         // Hash the track metadata incrementally. A cached playlist key should occupy the same
         // space whether it describes ten songs or ten thousand. NUL separates filesystem paths.
         val digest = MessageDigest.getInstance("SHA-256")

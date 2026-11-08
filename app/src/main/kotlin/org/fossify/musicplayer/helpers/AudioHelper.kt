@@ -73,7 +73,11 @@ class AudioHelper(private val context: Context) {
 
     fun removeTracksFromPlaylist(playlistId: Int, mediaStoreIds: List<Long>) {
         if (mediaStoreIds.isEmpty()) return
-        context.tracksDAO.removeTracksFromPlaylist(playlistId, mediaStoreIds)
+        // Older Android SQLite versions accept at most 999 bind parameters per statement.
+        // One transaction keeps a large selection atomic across all batches.
+        context.getTracksDB().runInTransaction {
+            mediaStoreIds.chunked(900).forEach { context.tracksDAO.removeTracksFromPlaylist(playlistId, it) }
+        }
     }
 
     fun insertArtists(artists: List<Artist>) {
@@ -201,40 +205,51 @@ class AudioHelper(private val context: Context) {
         }
     }
 
-    fun getPlaylistTracks(playlistId: Int): ArrayList<Track> {
-        val tracks = context.tracksDAO.getTracksFromPlaylist(playlistId)
+    // The media browser builds all playlist folders together; fetch membership rows in bounded batches.
+    // Each group uses exactly the same filename and ordering rules as opening one playlist.
+    fun getPlaylistTracksById(ids: List<Int>): Map<Int, ArrayList<Track>> =
+        context.tracksDAO.getPlaylistMemberships(ids).groupBy { it.playListId }
+            .mapValues { (id, tracks) -> sortedPlaylistTracks(id, tracks) }
+
+    fun getPlaylistTracks(playlistId: Int) =
+        sortedPlaylistTracks(playlistId, context.tracksDAO.getTracksFromPlaylist(playlistId))
+
+    private fun sortedPlaylistTracks(playlistId: Int, rows: List<Track>): ArrayList<Track> {
+        val tracks = rows
             .applyProperFilenames(config.showFilename)
 
         tracks.sortSafely(config.getProperPlaylistSorting(playlistId))
         return tracks
     }
 
-    fun getPlaylistTrackCount(playlistId: Int): Int {
-        return context.tracksDAO.getTracksCountFromPlaylist(playlistId)
-    }
+    /** Copy membership, never the Room primary key. Reusing a source ID in an INSERT OR
+     * REPLACE can move the original song out of its playlist. Serialize concurrent appends. */
+    fun copyToPlaylist(playlistId: Int, tracks: Collection<Track>): Boolean =
+        context.getTracksDB().runInTransaction(java.util.concurrent.Callable {
+            if (context.playlistDAO.getPlaylistWithId(playlistId) == null) return@Callable false
+            val dao = context.tracksDAO
+            val first = dao.lastPlaylistPosition(playlistId) + 1
+            dao.insertMemberships(tracks.mapIndexed { index, track ->
+                track.copy(id = 0, playListId = playlistId, orderInPlaylist = first + index)
+            })
+            true
+        })
 
     fun updateOrderInPlaylist(playlistId: Int, trackId: Long) {
         context.tracksDAO.updateOrderInPlaylist(playlistId, trackId)
     }
 
     fun deletePlaylists(playlists: ArrayList<Playlist>) {
-        context.playlistDAO.deletePlaylists(playlists)
-        playlists.forEach {
-            context.tracksDAO.removePlaylistSongs(it.id)
-            PlaylistArtwork.reset(context, it.id)
+        context.getTracksDB().runInTransaction {
+            playlists.forEach { context.tracksDAO.removePlaylistSongs(it.id) }
+            context.playlistDAO.deletePlaylists(playlists)
         }
+        playlists.forEach { PlaylistArtwork.reset(context, it.id) }
     }
 
     fun removeInvalidAlbumsArtists() {
-        val tracks = context.tracksDAO.getAll()
-        val albums = context.albumsDAO.getAll()
-        val artists = context.artistDAO.getAll()
-
-        val invalidAlbums = albums.filter { album -> tracks.none { it.albumId == album.id } }
-        deleteAlbums(invalidAlbums)
-
-        val invalidArtists = artists.filter { artist -> tracks.none { it.artistId == artist.id } }
-        deleteArtists(invalidArtists)
+        context.albumsDAO.deleteWithoutTracks()
+        context.artistDAO.deleteWithoutTracks()
     }
 
     fun getQueuedTracks(queueItems: List<QueueItem> = context.queueDAO.getAll()): ArrayList<Track> {

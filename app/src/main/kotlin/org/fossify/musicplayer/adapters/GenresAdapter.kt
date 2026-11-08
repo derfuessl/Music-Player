@@ -60,9 +60,9 @@ class GenresAdapter(activity: BaseSimpleActivity, items: ArrayList<Genre>, recyc
                 val selectedGenres = getSelectedItems()
                 val positions = selectedGenres.mapNotNull { genre -> items.indexOfFirstOrNull { it.id == genre.id } } as ArrayList<Int>
                 val tracks = context.audioHelper.getGenreTracks(selectedGenres)
-                context.audioHelper.deleteGenres(selectedGenres)
 
                 context.deleteTracks(tracks) {
+                    ensureBackgroundThread { context.audioHelper.deleteGenres(selectedGenres) }
                     context.runOnUiThread {
                         positions.sortDescending()
                         removeSelectedItems(positions)
