@@ -19,4 +19,6 @@ interface ArtistsDao {
 
     @Query("DELETE FROM artists WHERE id = :id")
     fun deleteArtist(id: Long)
+    @Query("DELETE FROM artists WHERE id NOT IN (SELECT DISTINCT artist_id FROM tracks)")
+    fun deleteWithoutTracks()
 }

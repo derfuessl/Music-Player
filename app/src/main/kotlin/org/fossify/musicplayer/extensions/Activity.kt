@@ -1,5 +1,7 @@
 package org.fossify.musicplayer.extensions
 
+import org.greenrobot.eventbus.EventBus
+import org.fossify.musicplayer.models.Events
 import android.app.Activity
 import android.content.ContentUris
 import android.provider.MediaStore
@@ -10,21 +12,13 @@ import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.musicplayer.BuildConfig
 import org.fossify.musicplayer.dialogs.SelectPlaylistDialog
 import org.fossify.musicplayer.helpers.FLAG_MANUAL_CACHE
-import org.fossify.musicplayer.helpers.RoomHelper
 import org.fossify.musicplayer.models.Track
 
 fun Activity.addTracksToPlaylist(tracks: List<Track>, callback: () -> Unit) {
     SelectPlaylistDialog(this) { playlistId ->
-        val tracksToAdd = ArrayList<Track>()
-        tracks.forEach {
-            it.id = 0
-            it.playListId = playlistId
-            tracksToAdd.add(it)
-        }
-
         ensureBackgroundThread {
-            RoomHelper(this).insertTracksWithPlaylist(tracksToAdd)
-
+            audioHelper.copyToPlaylist(playlistId, tracks)
+            EventBus.getDefault().post(Events.PlaylistsUpdated())
             runOnUiThread {
                 callback()
             }

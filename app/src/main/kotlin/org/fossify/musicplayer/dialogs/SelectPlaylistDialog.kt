@@ -1,8 +1,9 @@
 package org.fossify.musicplayer.dialogs
 
 import android.app.Activity
+import android.view.View
 import android.view.ViewGroup
-import android.widget.RadioGroup
+import android.widget.BaseAdapter
 import androidx.appcompat.app.AlertDialog
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.setupDialogStuff
@@ -21,53 +22,49 @@ class SelectPlaylistDialog(val activity: Activity, val callback: (playlistId: In
         ensureBackgroundThread {
             val playlists = activity.audioHelper.getAllPlaylists()
             activity.runOnUiThread {
+                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
                 initDialog(playlists)
-
-                if (playlists.isEmpty()) {
-                    showNewPlaylistDialog()
-                }
+                if (playlists.isEmpty()) showNewPlaylistDialog()
             }
         }
-
         binding.dialogSelectPlaylistNewRadio.setOnClickListener {
             binding.dialogSelectPlaylistNewRadio.isChecked = false
             showNewPlaylistDialog()
         }
     }
 
-    private fun initDialog(playlists: ArrayList<Playlist>) {
-        playlists.forEach {
-            ItemSelectPlaylistBinding.inflate(activity.layoutInflater).apply {
-                val playlist = it
-                selectPlaylistItemRadioButton.apply {
+    private fun initDialog(playlists: List<Playlist>) {
+        // Keep the create action accessible while recycling the list of destinations.
+        // Bind the click listener again on reuse so it always refers to the visible ID.
+        binding.dialogSelectPlaylistLinear.adapter = object : BaseAdapter() {
+            override fun getCount() = playlists.size
+            override fun getItem(position: Int) = playlists[position]
+            override fun getItemId(position: Int) = playlists[position].id.toLong()
+            override fun hasStableIds() = true
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val row = convertView?.let(ItemSelectPlaylistBinding::bind)
+                    ?: ItemSelectPlaylistBinding.inflate(activity.layoutInflater, parent, false)
+                val playlist = getItem(position)
+                row.selectPlaylistItemRadioButton.apply {
                     text = playlist.title
                     isChecked = false
-                    id = playlist.id
-
                     setOnClickListener {
-                        callback(playlist.id)
                         dialog?.dismiss()
+                        callback(playlist.id)
                     }
                 }
-
-                binding.dialogSelectPlaylistLinear.addView(
-                    this.root,
-                    RadioGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                )
+                return row.root
             }
         }
-
         activity.getAlertDialogBuilder().apply {
-            activity.setupDialogStuff(binding.root, this) { alertDialog ->
-                dialog = alertDialog
-            }
+            activity.setupDialogStuff(binding.root, this) { dialog = it }
         }
     }
 
     private fun showNewPlaylistDialog() {
         NewPlaylistDialog(activity) {
-            callback(it)
             dialog?.dismiss()
+            callback(it)
         }
     }
 }

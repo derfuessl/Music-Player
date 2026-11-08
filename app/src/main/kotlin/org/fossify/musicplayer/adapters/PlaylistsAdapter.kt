@@ -71,25 +71,23 @@ class PlaylistsAdapter(
     }
 
     private fun removePlaylists(playlistsToDelete: ArrayList<Playlist>) {
-        val positions = playlistsToDelete.mapNotNull { playlist ->
-            items.indexOfFirstOrNull { it.id == playlist.id }
-        } as ArrayList<Int>
-
+        val ids = playlistsToDelete.mapTo(HashSet()) { it.id }
         ensureBackgroundThread {
             context.audioHelper.deletePlaylists(playlistsToDelete)
             context.runOnUiThread {
-                items.removeAll(playlistsToDelete.toSet())
-                removeSelectedItems(positions)
+                // Positions may have changed while the database transaction ran.
+                updateItems(items.filterNotTo(ArrayList()) { it.id in ids }, forceUpdate = true)
+                EventBus.getDefault().post(Events.PlaylistsUpdated())
             }
-
-            EventBus.getDefault().post(Events.PlaylistsUpdated())
         }
     }
 
     private fun showRenameDialog() {
-        NewPlaylistDialog(context, items[getItemKeyPosition(selectedKeys.first())]) {
+        val selected = getSelectedItems().singleOrNull() ?: return
+        NewPlaylistDialog(context, selected) {
             context.runOnUiThread {
                 finishActMode()
+                EventBus.getDefault().post(Events.PlaylistsUpdated())
             }
         }
     }

@@ -206,7 +206,7 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
         startIndex: Int,
         startPositionMs: Long
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-        if (controller.packageName == packageName) {
+        if (mediaItems.isEmpty() || controller.packageName == packageName) {
             return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
         }
 
@@ -231,7 +231,7 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
         mediaItems: List<MediaItem>
     ): ListenableFuture<List<MediaItem>> {
         return executorService.submit<List<MediaItem>> {
-            val items = mediaItems.map { mediaItem ->
+            val items = mediaItems.mapNotNull { mediaItem ->
                 if (mediaItem.requestMetadata.searchQuery != null) {
                     getMediaItemFromSearchQuery(mediaItem.requestMetadata.searchQuery!!)
                 } else {
@@ -242,7 +242,7 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
         }
     }
 
-    private fun getMediaItemFromSearchQuery(query: String): MediaItem {
+    private fun getMediaItemFromSearchQuery(query: String): MediaItem? {
         return mediaItemProvider.getItemFromSearch(query.lowercase()) ?: mediaItemProvider.getRandomItem()
     }
 

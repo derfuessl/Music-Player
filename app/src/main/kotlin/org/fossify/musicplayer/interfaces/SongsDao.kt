@@ -14,6 +14,13 @@ interface SongsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAll(tracks: List<Track>)
 
+    // Adding an existing membership again preserves its ID and manual position.
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insertMemberships(tracks: List<Track>)
+
+    @Query("SELECT COALESCE(MAX(order_in_playlist), -1) FROM tracks WHERE playlist_id = :id")
+    fun lastPlaylistPosition(id: Int): Int
+
     @Query("SELECT * FROM tracks")
     fun getAll(): List<Track>
 
@@ -26,8 +33,8 @@ interface SongsDao {
     @Query("SELECT * FROM tracks WHERE album_id = :albumId")
     fun getTracksFromAlbum(albumId: Long): List<Track>
 
-    @Query("SELECT COUNT(*) FROM tracks WHERE playlist_id = :playlistId")
-    fun getTracksCountFromPlaylist(playlistId: Int): Int
+    @Query("SELECT * FROM tracks WHERE playlist_id IN (:ids)")
+    fun getPlaylistMemberships(ids: List<Int>): List<Track>
 
     @Query("SELECT * FROM tracks WHERE folder_name = :folderName COLLATE NOCASE GROUP BY media_store_id")
     fun getTracksFromFolder(folderName: String): List<Track>
