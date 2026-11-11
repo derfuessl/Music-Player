@@ -18,6 +18,7 @@ import androidx.core.widget.doAfterTextChanged
 import org.fossify.musicplayer.extensions.playlistDAO
 import java.util.concurrent.Executors
 import org.fossify.musicplayer.helpers.PlaylistListWidget
+import org.fossify.musicplayer.helpers.PlaylistLargeWidget
 import org.fossify.musicplayer.helpers.PlaylistTileWidget
 import org.fossify.musicplayer.helpers.PlaylistWidgetSize
 import org.fossify.musicplayer.helpers.WidgetPlaylistIndex
@@ -31,7 +32,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
     private var color = PlaylistListWidget.DEFAULT_COLOR
     private var transparency = 0
     private var heading = false
-    private var automatic = true
+    private var resolveLegacySelection = false
     private val selected = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,6 +42,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         setResult(RESULT_CANCELED, result)
         val manager = AppWidgetManager.getInstance(this)
         val provider = when (manager.getAppWidgetInfo(id)?.provider) {
+            ComponentName(this, PlaylistLargeWidget::class.java) -> PlaylistLargeWidget()
             ComponentName(this, PlaylistListWidget::class.java) -> PlaylistListWidget()
             ComponentName(this, PlaylistTileWidget::class.java) -> PlaylistTileWidget()
             else -> { finish(); return }
@@ -48,7 +50,8 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         query = savedInstanceState?.getString("query").orEmpty()
         val prefs = PlaylistListWidget.preferences(this)
         val savedIds = prefs.getStringSet(id.toString(), null)
-        automatic = savedInstanceState?.getBoolean("automatic") ?: (savedIds == null)
+        // Earlier versions stored no IDs for automatic widgets. Show their current choices once.
+        resolveLegacySelection = savedInstanceState?.getBoolean("resolveLegacy") ?: (savedIds == null && prefs.contains("heading:$id"))
         selected.addAll(savedInstanceState?.getStringArrayList("selection") ?: savedIds.orEmpty().toList())
         color = savedInstanceState?.getInt("color") ?: prefs.getInt("color:$id", PlaylistListWidget.DEFAULT_COLOR)
         transparency = savedInstanceState?.getInt("transparency") ?: prefs.getInt("transparency:$id", 0)
@@ -56,11 +59,15 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         ensureBackgroundThread {
             val playlists = WidgetPlaylistIndex(playlistDAO.widgetPlaylists(Int.MAX_VALUE))
             runOnUiThread {
-                val title = if (provider is PlaylistTileWidget) R.string.widget_playlist_tiles else R.string.widget_playlist_label
-                if (!isFinishing && !isDestroyed) showSettings(playlists, title, id, provider is PlaylistTileWidget) {
+                val title = when (provider) {
+                    is PlaylistLargeWidget -> R.string.widget_playlist_large
+                    is PlaylistTileWidget -> R.string.widget_playlist_tiles
+                    else -> R.string.widget_playlist_label
+                }
+                if (!isFinishing && !isDestroyed) showSettings(playlists, title, id, provider is PlaylistTileWidget, provider is PlaylistLargeWidget) {
                     val editor = prefs.edit().putInt("color:$id", color).putInt("transparency:$id", transparency)
                         .putBoolean("heading:$id", heading)
-                    if (automatic) editor.remove(id.toString()) else editor.putStringSet(id.toString(), selected.toSet())
+                    editor.putStringSet(id.toString(), selected.toSet())
                     editor.apply()
                     // The host skips the first onUpdate when configuration is required.
                     provider.onUpdate(this, manager, intArrayOf(id))
@@ -70,7 +77,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         }
     }
 
-    private fun showSettings(playlists: WidgetPlaylistIndex, title: Int, id: Int, tiled: Boolean, save: () -> Unit) {
+    private fun showSettings(playlists: WidgetPlaylistIndex, title: Int, id: Int, tiled: Boolean, large: Boolean, save: () -> Unit) {
         val pad = (20 * resources.displayMetrics.density).toInt()
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -89,7 +96,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         panel.addView(search)
         val visibleCount = TextView(this)
         panel.addView(visibleCount)
-        val sizes = PlaylistWidgetSize(this, tiled)
+        val sizes = PlaylistWidgetSize(this, tiled, large)
         val bounds = sizes.current(AppWidgetManager.getInstance(this).getAppWidgetOptions(id))
         fun updateCount() {
             val capacity = sizes.grid(bounds, heading).capacity
@@ -142,17 +149,11 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
             setOnCheckedChangeListener { _, value -> heading = value; updateCount() }
         })
         column.addView(TextView(this).apply { text = getString(R.string.widget_playlist_limit, PlaylistListWidget.LIMIT) })
-        val auto = CheckBox(this).apply { setText(R.string.widget_playlist_auto); isChecked = automatic }
-        column.addView(auto)
-
-        // Automatic mode follows the first twelve available playlists. Tapping a row converts that
-        // visible selection into a fixed list. Removed playlists must not consume a selection slot.
         selected.retainAll(playlists.keys)
-        fun selectDefaults() {
-            selected.clear()
+        if (resolveLegacySelection) {
             playlists.rows.take(PlaylistListWidget.LIMIT).forEach { selected.add(it.key) }
+            resolveLegacySelection = false
         }
-        if (automatic) selectDefaults()
         updateCount()
         var matches = if (query.isBlank()) playlists.rows else emptyList()
         val adapter = object : BaseAdapter() {
@@ -173,8 +174,6 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
                             isChecked = false
                             Toast.makeText(context, getString(R.string.widget_playlist_limit, PlaylistListWidget.LIMIT), Toast.LENGTH_SHORT).show()
                         } else {
-                            automatic = false
-                            auto.isChecked = false
                             if (isChecked) selected.add(row.key) else selected.remove(row.key)
                             updateCount()
                         }
@@ -183,11 +182,15 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
             }
         }
         list.adapter = adapter
-        auto.setOnClickListener {
-            automatic = auto.isChecked
-            if (automatic) { selectDefaults(); adapter.notifyDataSetChanged() }
-            updateCount()
+        val clear = Button(this).apply {
+            setText(R.string.widget_playlist_none)
+            setOnClickListener {
+                selected.clear()
+                adapter.notifyDataSetChanged()
+                updateCount()
+            }
         }
+        panel.addView(clear, 2)
         var generation = 0
         fun filter(text: String) {
             query = text
@@ -229,7 +232,7 @@ class PlaylistWidgetSelectionActivity : SimpleActivity() {
         outState.putInt("color", color)
         outState.putInt("transparency", transparency)
         outState.putBoolean("heading", heading)
-        outState.putBoolean("automatic", automatic)
+        outState.putBoolean("resolveLegacy", resolveLegacySelection)
         outState.putStringArrayList("selection", ArrayList(selected))
     }
 }

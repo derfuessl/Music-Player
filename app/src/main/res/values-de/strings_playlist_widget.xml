@@ -4,7 +4,8 @@
     <string name="widget_playlist_choose">Auswählen</string>
     <string name="widget_playlist_empty">Keine Playlists ausgewählt oder vorhanden.</string>
     <string name="widget_playlist_limit">Bis zu %1$d Playlists auswählen</string>
-    <string name="widget_playlist_auto">Automatisch</string>
+    <string name="widget_playlist_large">Playlist-Liste groß</string>
+    <string name="widget_playlist_none">Keine</string>
     <string name="widget_play_named_playlist">%1$s abspielen</string>
     <string name="widget_no_tracks">Diese Playlist ist leer oder nicht mehr vorhanden.</string>
     <string name="widget_play_failed">Die Wiedergabe konnte nicht gestartet werden.</string>

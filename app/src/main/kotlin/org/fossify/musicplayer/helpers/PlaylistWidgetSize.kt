@@ -14,14 +14,14 @@ import kotlin.math.roundToInt
 /** The launcher reports usable bounds in dp, not its private home-screen row/column spans.
  * Measure the actual XML once per update so system font scaling and two-line labels use the
  * same space in the picker and on the home screen, including on launchers predating Android 12. */
-internal class PlaylistWidgetSize(private val context: Context, private val tiled: Boolean) {
+internal class PlaylistWidgetSize(private val context: Context, private val tiled: Boolean, private val large: Boolean = false) {
     private val resources = context.resources
     private val density = resources.displayMetrics.density
     private val inset = resources.getDimensionPixelSize(R.dimen.widget_playlist_content_inset)
     private val tileWidth = resources.getDimensionPixelSize(R.dimen.widget_tile_width)
     private val inflater = LayoutInflater.from(context)
     private val cellHeight = measuredHeight(inflater.inflate(
-        if (tiled) R.layout.widget_playlist_tile else R.layout.widget_playlist_row, null))
+        if (tiled) R.layout.widget_playlist_tile else if (large) R.layout.widget_playlist_large_row else R.layout.widget_playlist_row, null))
     private val headingHeight = measuredHeight(inflater.inflate(R.layout.widget_playlist_list, null)
         .findViewById<View>(R.id.widget_playlist_heading).apply { visibility = View.VISIBLE })
 
@@ -33,7 +33,12 @@ internal class PlaylistWidgetSize(private val context: Context, private val tile
     fun grid(size: SizeF, heading: Boolean): PlaylistWidgetGrid {
         val width = (size.width * density).roundToInt() - 2 * inset
         val height = (size.height * density).roundToInt() - if (heading) headingHeight else 0
-        return PlaylistWidgetGrid.fit(width, height, tileWidth, cellHeight, tiled)
+        // A single icon uses the full compact cell, even when two lines of text cannot fit.
+        val iconSize = minOf(width, height)
+        if (tiled && (width < tileWidth || height < cellHeight) && iconSize >= (24 * density).roundToInt()) {
+            return PlaylistWidgetGrid(1, 1, iconSize = iconSize)
+        }
+        return PlaylistWidgetGrid.fit(width, height, tileWidth, cellHeight, tiled).copy(availableHeight = height, minRowHeight = cellHeight)
     }
 
     fun exact(options: Bundle): List<SizeF> = if (Build.VERSION.SDK_INT >= 31) {
