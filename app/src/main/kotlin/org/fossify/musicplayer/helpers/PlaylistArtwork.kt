@@ -52,7 +52,28 @@ object PlaylistArtwork {
         override fun sizeOf(key: String, value: CachedImage) = 128 + 2 * key.length + (value.bitmap?.allocationByteCount ?: 0)
     }
 
+    // Separate small launcher images from 512px album art. Rebinding widgets after rotation or
+    // a home-screen page change can now skip the track query, file stats and collage decoding.
+    private val widgetCache = object : LruCache<Long, CachedImage>(6 * 1024 * 1024) {
+        override fun sizeOf(key: Long, value: CachedImage) = 64 + (value.bitmap?.allocationByteCount ?: 0)
+    }
+    private val widgetGeneration = AtomicLong()
+
+    fun invalidateWidgetThumbnails() {
+        widgetGeneration.incrementAndGet()
+        widgetCache.evictAll()
+    }
+
+    fun widgetThumbnail(context: Context, playlistId: Int): Bitmap? {
+        val key = (widgetGeneration.get() shl 32) or (playlistId.toLong() and 0xffffffffL)
+        widgetCache.get(key)?.let { return it.bitmap }
+        val image = loadPlaylist(context, playlistId)?.let { Bitmap.createScaledBitmap(it, 128, 128, true) }
+        if (!Thread.currentThread().isInterrupted) widgetCache.put(key, CachedImage(image))
+        return image
+    }
+
     fun invalidate() {
+        invalidateWidgetThumbnails()
         generation.incrementAndGet()
         cache.evictAll()
     }
