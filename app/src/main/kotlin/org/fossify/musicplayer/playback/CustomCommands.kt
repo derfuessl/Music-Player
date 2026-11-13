@@ -16,6 +16,8 @@ enum class CustomCommands(val customAction: String) {
     SET_NEXT_ITEM(customAction = PATH + "SET_NEXT_ITEM"),
     SET_SHUFFLE_ORDER(customAction = PATH + "SET_SHUFFLE_ORDER"),
     START_STOP_DANCE(customAction = PATH + "START_STOP_DANCE"),
+    DANCE_PREVIOUS(PATH + "DANCE_PREVIOUS"),
+    DANCE_NEXT(PATH + "DANCE_NEXT"),
     STOP_STOP_DANCE(customAction = PATH + "STOP_STOP_DANCE"),
     GET_STOP_DANCE_STATE(customAction = PATH + "GET_STOP_DANCE_STATE");
 
@@ -25,6 +27,9 @@ enum class CustomCommands(val customAction: String) {
         const val MIN_PLAY_SECONDS = "min_play_seconds"
         const val MAX_PLAY_SECONDS = "max_play_seconds"
         const val PAUSE_SECONDS = "pause_seconds"
+        const val TRACK_TITLE = "dance_track_title"
+        const val HAS_PREVIOUS = "dance_has_previous"
+        const val HAS_NEXT = "dance_has_next"
         const val STOP_DANCE_PHASE = "stop_dance_phase"
         const val STOP_DANCE_CAN_START = "stop_dance_can_start"
         const val STOP_DANCE_IS_PLAYING = "stop_dance_is_playing"

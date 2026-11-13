@@ -10,9 +10,10 @@ class StopDanceControllerTest {
         override var isPlaying = false
         var item = "track-a"
         var position = 12345L
+        var selected: String? = null
         var playCalls = 0
         override fun snapshot(): Any = item to position
-        override fun play() { playCalls++; isPlaying = true }
+        override fun play() { selected?.let { item = it }; playCalls++; isPlaying = true }
         override fun pause() { isPlaying = false }
     }
 
@@ -39,6 +40,20 @@ class StopDanceControllerTest {
         max.toLong()
     }
     private val settings = StopDanceController.Settings(2, 4, 3)
+
+    @Test fun pausedSelectionKeepsOriginalDeadline() {
+        controller.start(settings)
+        scheduler.fire()
+        val originalPause = scheduler.tasks.last()
+        playback.selected = "track-b"
+        assertEquals("track-a", playback.item)
+        controller.onPositionChanged()
+        assertFalse(playback.isPlaying)
+        assertSame(originalPause, scheduler.tasks.last())
+        scheduler.fire()
+        assertEquals("track-b", playback.item)
+        assertTrue(playback.isPlaying)
+    }
 
     @Test fun cyclesWithoutChangingTrackOrPosition() {
         assertTrue(controller.start(settings))

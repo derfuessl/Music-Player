@@ -63,6 +63,7 @@ class TracksHeaderAdapter(activity: SimpleActivity, items: ArrayList<ListItem>, 
     }
 
     override fun prepareActionMode(menu: Menu) {
+        super.prepareActionMode(menu)
         menu.apply {
             findItem(R.id.cab_rename).isVisible = shouldShowRename()
             findItem(R.id.cab_play_next).isVisible = shouldShowPlayNext()

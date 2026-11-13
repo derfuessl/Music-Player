@@ -24,6 +24,11 @@ class Config(context: Context) : BaseConfig(context) {
         get() = prefs.getInt(SHOW_FILENAME, SHOW_FILENAME_IF_UNAVAILABLE)
         set(showFilename) = prefs.edit().putInt(SHOW_FILENAME, showFilename).apply()
 
+    // Physical deletion requires explicit opt-in, including after upgrading.
+    var allowFileDeletion: Boolean
+        get() = prefs.getBoolean("allow_file_deletion", false)
+        set(value) = prefs.edit().putBoolean("allow_file_deletion", value).apply()
+
     var swapPrevNext: Boolean
         get() = prefs.getBoolean(SWAP_PREV_NEXT, false)
         set(swapPrevNext) = prefs.edit().putBoolean(SWAP_PREV_NEXT, swapPrevNext).apply()

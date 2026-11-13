@@ -56,6 +56,8 @@ class StopDanceFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
         binding.stopDanceMinInput.setText(context.config.stopDanceMinSeconds.toString())
         binding.stopDanceMaxInput.setText(context.config.stopDanceMaxSeconds.toString())
         binding.stopDancePauseInput.setText(context.config.stopDancePauseSeconds.toString())
+        binding.stopDancePrevious.setOnClickListener { sendCommand(CustomCommands.DANCE_PREVIOUS) }
+        binding.stopDanceNext.setOnClickListener { sendCommand(CustomCommands.DANCE_NEXT) }
         binding.stopDanceStart.setOnClickListener { startDance() }
         binding.stopDanceStop.setOnClickListener { sendCommand(CustomCommands.STOP_STOP_DANCE) }
     }
@@ -128,6 +130,9 @@ class StopDanceFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
         disconnect()
         binding.stopDanceStatus.setText(R.string.stop_dance_disconnected)
         binding.stopDanceStatusHint.setText(R.string.stop_dance_source)
+        binding.stopDanceTrack.text = ""
+        binding.stopDancePrevious.isEnabled = false
+        binding.stopDanceNext.isEnabled = false
         binding.stopDanceStart.isEnabled = false
         binding.stopDanceStop.isEnabled = false
     }
@@ -209,6 +214,9 @@ class StopDanceFragment(context: Context, attributeSet: AttributeSet) : MyViewPa
     }
 
     private fun renderState(state: Bundle) {
+        setTextIfChanged(binding.stopDanceTrack, state.getString(CustomCommands.TRACK_TITLE).orEmpty())
+        binding.stopDancePrevious.isEnabled = state.getBoolean(CustomCommands.HAS_PREVIOUS)
+        binding.stopDanceNext.isEnabled = state.getBoolean(CustomCommands.HAS_NEXT)
         val phase = state.getString(CustomCommands.STOP_DANCE_PHASE)
         active = phase == StopDanceController.Phase.PLAYING.name || phase == StopDanceController.Phase.PAUSED.name
         canStart = state.getBoolean(CustomCommands.STOP_DANCE_CAN_START)

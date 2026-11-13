@@ -98,7 +98,7 @@ data class Track(
         }
     }
 
-    fun getUri(): Uri = if (mediaStoreId == 0L || flags and FLAG_MANUAL_CACHE != 0) {
+    fun getUri(): Uri = if (mediaStoreId == 0L || mediaStoreId < Int.MIN_VALUE || flags and FLAG_MANUAL_CACHE != 0) {
         Uri.fromFile(File(path))
     } else {
         ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaStoreId)

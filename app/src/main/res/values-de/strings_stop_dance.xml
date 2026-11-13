@@ -15,10 +15,12 @@
     <string name="stop_dance_waiting">Warte auf Wiedergabe…</string>
     <string name="stop_dance_stopped_hint">Stopptanz ist aus. Start beginnt eine neue Runde.</string>
     <string name="stop_dance_playing_hint">Die Musik pausiert automatisch.</string>
-    <string name="stop_dance_paused_hint">Stillhalten. Derselbe Titel läuft danach an derselben Stelle weiter.</string>
+    <string name="stop_dance_paused_hint">Stillstehen! Nach der Pause läuft der ausgewählte Titel.</string>
     <string name="stop_dance_stop_hint">Stop beendet das Spiel und pausiert die Musik. Beim Wechsel der Registerkarte läuft das Spiel weiter.</string>
     <string name="stop_dance_positive_seconds">Eine gültige ganze Sekundenzahl größer als null eingeben.</string>
     <string name="stop_dance_invalid_range">Der Höchstwert muss mindestens dem Mindestwert entsprechen.</string>
     <string name="stop_dance_failed">Start nicht möglich. Wähle einen Titel und warte, bis er bereit ist.</string>
     <string name="stop_dance_disconnected">Player nicht erreichbar. Öffne die App erneut, um die Verbindung herzustellen.</string>
+    <string name="dance_previous">Zurück</string>
+    <string name="dance_next">Weiter</string>
 </resources>

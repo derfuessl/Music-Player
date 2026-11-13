@@ -15,10 +15,12 @@
     <string name="stop_dance_waiting">Waiting for playback…</string>
     <string name="stop_dance_stopped_hint">Stop Dance is off. Start begins a new round.</string>
     <string name="stop_dance_playing_hint">The music will pause automatically.</string>
-    <string name="stop_dance_paused_hint">Stay still. The same song will resume at the same position.</string>
+    <string name="stop_dance_paused_hint">Stay still. The selected song will play when the pause ends.</string>
     <string name="stop_dance_stop_hint">Stop ends the game and pauses the music. Changing tabs keeps the game running.</string>
     <string name="stop_dance_positive_seconds">Enter a valid whole number of seconds greater than zero.</string>
     <string name="stop_dance_invalid_range">Maximum must be at least the minimum.</string>
     <string name="stop_dance_failed">Could not start. Select a song and wait until it is ready.</string>
     <string name="stop_dance_disconnected">Player unavailable. Reopen the app to reconnect.</string>
+    <string name="dance_previous">Previous</string>
+    <string name="dance_next">Next</string>
 </resources>

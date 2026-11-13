@@ -25,6 +25,7 @@ internal class StopDanceController(
 
     interface Playback {
         val canStart: Boolean
+        val canResume: Boolean get() = canStart
         val isPlaying: Boolean
         /** Opaque identity and position; a changed snapshot must never be restored over user edits. */
         fun snapshot(): Any
@@ -94,7 +95,7 @@ internal class StopDanceController(
     private fun resume() {
         // Never seek back over a user's track/position edit. Cancel instead if anything changed
         // during the pause, including changes whose Player event has not been delivered yet.
-        if (!playback.canStart || pausedSnapshot != playback.snapshot()) {
+        if (!playback.canResume || pausedSnapshot != playback.snapshot()) {
             stop()
             return
         }

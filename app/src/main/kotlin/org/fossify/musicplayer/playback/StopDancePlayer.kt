@@ -3,7 +3,6 @@ package org.fossify.musicplayer.playback
 import android.os.Handler
 import android.os.Bundle
 import android.os.Looper
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -20,7 +19,23 @@ internal class StopDancePlayer(private val player: SimpleMusicPlayer) : Player.L
     private val handler = Handler(player.applicationLooper)
     private var internalChange = false
     private var positionRevision = 0L
-    private data class Position(val item: MediaItem?, val index: Int, val revision: Long)
+    private data class Position(val mediaId: String?, val index: Int, val revision: Long)
+    // During a freeze only the selection moves. Seeking is deferred until the original deadline.
+    private data class Selection(val index: Int, val mediaId: String)
+    private var pending: Selection? = null
+    private fun pendingIndex(): Int? = pending?.takeIf {
+        it.index in 0 until player.mediaItemCount && player.getMediaItemAt(it.index).mediaId == it.mediaId
+    }?.index
+    private fun selectedIndex(): Int = pendingIndex().takeIf { controller.phase == StopDanceController.Phase.PAUSED } ?: player.currentMediaItemIndex
+
+    private fun neighbour(forward: Boolean): Int {
+        val timeline = player.currentTimeline
+        val index = selectedIndex()
+        if (index !in 0 until timeline.windowCount) return androidx.media3.common.C.INDEX_UNSET
+        val mode = if (player.repeatMode == Player.REPEAT_MODE_ONE) Player.REPEAT_MODE_OFF else player.repeatMode
+        return if (forward) timeline.getNextWindowIndex(index, mode, player.shuffleModeEnabled)
+            else timeline.getPreviousWindowIndex(index, mode, player.shuffleModeEnabled)
+    }
 
     private val canStart: Boolean
         get() = player.currentMediaItem != null && player.playerError == null &&
@@ -29,6 +44,9 @@ internal class StopDancePlayer(private val player: SimpleMusicPlayer) : Player.L
 
     /** Atomic snapshot for the UI. This method is called only through the service's player thread. */
     fun stateExtras() = Bundle().apply {
+        putString(CustomCommands.TRACK_TITLE, selectedIndex().takeIf { it in 0 until player.mediaItemCount }?.let { player.getMediaItemAt(it).mediaMetadata.title?.toString() })
+        putBoolean(CustomCommands.HAS_PREVIOUS, neighbour(false) != androidx.media3.common.C.INDEX_UNSET)
+        putBoolean(CustomCommands.HAS_NEXT, neighbour(true) != androidx.media3.common.C.INDEX_UNSET)
         putString(CustomCommands.STOP_DANCE_PHASE, controller.phase.name)
         putBoolean(CustomCommands.STOP_DANCE_CAN_START, canStart)
         putBoolean(CustomCommands.STOP_DANCE_IS_PLAYING, player.isPlaying)
@@ -43,14 +61,24 @@ internal class StopDancePlayer(private val player: SimpleMusicPlayer) : Player.L
                 // Phase 1 controls an already prepared queue. It never loads a playlist or
                 // implicitly restarts an ended track; callers must select/prepare media first.
                 get() = this@StopDancePlayer.canStart
+            override val canResume get() = player.currentMediaItem != null && player.playerError == null &&
+                player.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE &&
+                (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING)
             override val isPlaying get() = player.isPlaying
             // ExoPlayer may refine currentPosition after pause() as its playback thread catches up.
             // Comparing raw milliseconds would treat that normal settling as a user seek and end
             // the game on its first pause. Track actual position discontinuities instead. We never
             // seek ourselves: the prepared Player retains the audio position during each pause.
-            override fun snapshot(): Any = Position(player.currentMediaItem, player.currentMediaItemIndex, positionRevision)
-            override fun play() = changePlayer { player.play() }
-            override fun pause() = changePlayer { player.pause() }
+            override fun snapshot(): Any = Position(player.currentMediaItem?.mediaId, player.currentMediaItemIndex, positionRevision)
+            override fun play() = changePlayer {
+                pendingIndex()?.let { player.seekToDefaultPosition(it) }
+                pending = null
+                player.play()
+            }
+            override fun pause() = changePlayer {
+                pending = null
+                player.pause()
+            }
         },
         StopDanceController.Scheduler { delayMs, action ->
             val task = Runnable { action() }
@@ -67,6 +95,13 @@ internal class StopDancePlayer(private val player: SimpleMusicPlayer) : Player.L
         player.onPauseOrStopRequested = {
             if (!internalChange && controller.phase != StopDanceController.Phase.STOPPED) controller.stop()
         }
+    }
+
+    fun changeTrack(forward: Boolean) {
+        val target = neighbour(forward)
+        if (target == androidx.media3.common.C.INDEX_UNSET) return
+        if (controller.phase == StopDanceController.Phase.PAUSED) pending = Selection(target, player.getMediaItemAt(target).mediaId)
+        else player.seekToDefaultPosition(target)
     }
 
     private fun changePlayer(action: () -> Unit) {

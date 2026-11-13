@@ -70,6 +70,7 @@ class TracksAdapter(
     }
 
     override fun prepareActionMode(menu: Menu) {
+        super.prepareActionMode(menu)
         menu.apply {
             findItem(R.id.cab_remove_from_playlist).isVisible = isPlaylistContent()
             findItem(R.id.cab_rename).isVisible = shouldShowRename()
