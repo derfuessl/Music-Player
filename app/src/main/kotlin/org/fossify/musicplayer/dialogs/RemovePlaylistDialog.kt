@@ -1,6 +1,8 @@
 package org.fossify.musicplayer.dialogs
 
 import android.app.Activity
+import android.view.View
+import org.fossify.musicplayer.extensions.config
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.viewBinding
@@ -12,9 +14,10 @@ class RemovePlaylistDialog(val activity: Activity, val playlist: Playlist? = nul
     private val binding by activity.viewBinding(DialogRemovePlaylistBinding::inflate)
 
     init {
+        binding.removePlaylistCheckbox.visibility = if (activity.config.allowFileDeletion) View.VISIBLE else View.GONE
         binding.removePlaylistDescription.text = getDescriptionText()
         activity.getAlertDialogBuilder()
-            .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ -> callback(binding.removePlaylistCheckbox.isChecked) }
+            .setPositiveButton(org.fossify.commons.R.string.ok) { _, _ -> callback(activity.config.allowFileDeletion && binding.removePlaylistCheckbox.isChecked) }
             .setNegativeButton(org.fossify.commons.R.string.cancel, null)
             .apply {
                 activity.setupDialogStuff(binding.root, this, R.string.remove_playlist)

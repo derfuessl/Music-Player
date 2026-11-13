@@ -74,7 +74,7 @@ android {
         release {
             // Each public edition can be installed alongside the others and the original player.
             applicationIdSuffix = ".covers"
-            versionNameSuffix = "-kids.6"
+            versionNameSuffix = "-kids.8"
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
