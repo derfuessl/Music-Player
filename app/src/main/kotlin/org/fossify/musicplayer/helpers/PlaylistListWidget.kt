@@ -59,9 +59,9 @@ open class PlaylistListWidget : AppWidgetProvider() {
             // Extras alone do not distinguish adapter factories. Include the geometry in
             // the identity so a rotation or resize cannot reuse stale column counts.
             val adapter = Intent(context, PlaylistListService::class.java)
-                .setData(Uri.withAppendedPath(identity, "${grid.columns}-${grid.capacity}-${grid.availableHeight}-${grid.minRowHeight}-${grid.iconSize}"))
+                .setData(Uri.withAppendedPath(identity, "${grid.columns}-${grid.capacity}-${grid.iconSize}"))
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-                .putExtra(LARGE, large).putExtra(HEIGHT, grid.availableHeight).putExtra(MIN_ROW, grid.minRowHeight)
+                .putExtra(LARGE, large)
                 .putExtra(ICON_SIZE, grid.iconSize).putExtra(TILED, tiled).putExtra(CAPACITY, grid.capacity)
             removeAllViews(R.id.widget_playlist_collection)
             addView(R.id.widget_playlist_collection, RemoteViews(context.packageName, if (tiled && grid.iconSize == 0) R.layout.widget_playlist_tile_collection else R.layout.widget_playlist_collection))
@@ -91,8 +91,6 @@ open class PlaylistListWidget : AppWidgetProvider() {
         const val LIMIT = PlaylistWidgetGrid.LIMIT
         internal const val TILED = "playlist_widget_tiled"
         internal const val LARGE = "large"
-        internal const val HEIGHT = "height"
-        internal const val MIN_ROW = "min_row"
         internal const val ICON_SIZE = "icon_size"
         internal const val CAPACITY = "playlist_widget_capacity"
         const val DEFAULT_COLOR = 0xFFF6F5FC.toInt()
@@ -138,8 +136,6 @@ class PlaylistListService : RemoteViewsService() {
         val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         val tiled = intent.getBooleanExtra(PlaylistListWidget.TILED, false)
         val large = intent.getBooleanExtra(PlaylistListWidget.LARGE, false)
-        val height = intent.getIntExtra(PlaylistListWidget.HEIGHT, 0)
-        val minRow = intent.getIntExtra(PlaylistListWidget.MIN_ROW, 0)
         val iconSize = intent.getIntExtra(PlaylistListWidget.ICON_SIZE, 0)
         val capacity = intent.getIntExtra(PlaylistListWidget.CAPACITY, 1).coerceIn(0, PlaylistListWidget.LIMIT)
         val prefs = PlaylistListWidget.preferences(this)
@@ -169,15 +165,13 @@ class PlaylistListService : RemoteViewsService() {
                 val playlist = items.getOrNull(position) ?: return null
                 return cells.getOrPut(playlist.id) {
                     val color = prefs.getInt("color:$widgetId", PlaylistListWidget.DEFAULT_COLOR)
-                    // Share spare height among visible entries, with a cap for very short lists.
-                    val rowHeight = if (tiled) 0 else PlaylistWidgetGrid.rowHeight(height, minRow, items.size)
-                    cell(playlist, tiled, large, rowHeight, iconSize, PlaylistListWidget.textColor(color))
+                    cell(playlist, tiled, large, iconSize, PlaylistListWidget.textColor(color))
                 }
             }
         }
     }
 
-    private fun cell(playlist: Playlist, tiled: Boolean, large: Boolean, rowHeight: Int, iconSize: Int, color: Int): RemoteViews {
+    private fun cell(playlist: Playlist, tiled: Boolean, large: Boolean, iconSize: Int, color: Int): RemoteViews {
         val layout = when {
             iconSize > 0 -> R.layout.widget_playlist_icon
             tiled -> R.layout.widget_playlist_tile
@@ -186,16 +180,8 @@ class PlaylistListService : RemoteViewsService() {
         }
         return RemoteViews(packageName, layout).apply {
             if (iconSize > 0) {
-                setInt(R.id.widget_playlist_picture, "setMaxHeight", iconSize)
-                setInt(R.id.widget_playlist_picture, "setMinimumHeight", iconSize)
-            }
-            if (!tiled) {
-                setInt(R.id.widget_playlist_cell, "setMinimumHeight", rowHeight)
-                if (Build.VERSION.SDK_INT >= 31) {
-                    val side = (rowHeight - 2 * resources.displayMetrics.density).coerceAtLeast(1f)
-                    setViewLayoutWidth(R.id.widget_playlist_picture, side, android.util.TypedValue.COMPLEX_UNIT_PX)
-                    setViewLayoutHeight(R.id.widget_playlist_picture, side, android.util.TypedValue.COMPLEX_UNIT_PX)
-                }
+                // Grow the touch target only. The icon keeps its physical layout size.
+                setInt(R.id.widget_playlist_cell, "setMinimumHeight", iconSize)
             }
             if (iconSize == 0) {
                 setTextViewText(R.id.widget_playlist_name, playlist.title)
@@ -206,7 +192,9 @@ class PlaylistListService : RemoteViewsService() {
             else setImageViewBitmap(R.id.widget_playlist_picture, art)
             val open = Intent().putExtra(PLAYLIST, playlist.id)
             if (iconSize == 0) setOnClickFillInIntent(R.id.widget_playlist_name, open)
-            setOnClickFillInIntent(R.id.widget_playlist_picture, Intent(open).putExtra(PlaylistWidgetActionActivity.PLAY, true))
+            val play = Intent(open).putExtra(PlaylistWidgetActionActivity.PLAY, true)
+            setOnClickFillInIntent(R.id.widget_playlist_picture, play)
+            if (iconSize > 0) setOnClickFillInIntent(R.id.widget_playlist_cell, play)
             setContentDescription(R.id.widget_playlist_picture, getString(R.string.widget_play_named_playlist, playlist.title))
         }
     }

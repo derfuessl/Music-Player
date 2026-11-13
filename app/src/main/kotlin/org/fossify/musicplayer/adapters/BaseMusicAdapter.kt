@@ -48,7 +48,10 @@ abstract class BaseMusicAdapter<Type>(
 
     override fun getItemKeyPosition(key: Int) = items.indexOfFirst { it.hashCode() == key }
 
-    override fun prepareActionMode(menu: Menu) {}
+    override fun prepareActionMode(menu: Menu) {
+        menu.findItem(org.fossify.musicplayer.R.id.cab_delete)?.isVisible = context.config.allowFileDeletion
+        menu.findItem(org.fossify.musicplayer.R.id.cab_delete_file)?.isVisible = context.config.allowFileDeletion
+    }
 
     override fun onActionModeCreated() {}
 

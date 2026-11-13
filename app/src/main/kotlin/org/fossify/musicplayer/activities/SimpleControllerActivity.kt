@@ -115,6 +115,8 @@ abstract class SimpleControllerActivity : SimpleActivity(), Player.Listener {
     }
 
     fun deleteTracks(tracks: List<Track>, callback: () -> Unit) {
+        // Protect against stale menus after a preference change as well.
+        if (!config.allowFileDeletion) return
         if (tracks.isEmpty()) {
             runOnUiThread(callback)
             return

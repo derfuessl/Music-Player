@@ -42,6 +42,7 @@ class SettingsActivity : SimpleControllerActivity() {
         setupLanguage()
         setupManageExcludedFolders()
         setupManageShownTabs()
+        setupAllowFileDeletion()
         setupSwapPrevNext()
         setupReplaceTitle()
         updateTextColors(binding.settingsNestedScrollview)
@@ -89,6 +90,14 @@ class SettingsActivity : SimpleControllerActivity() {
         settingsSwapPrevNextHolder.setOnClickListener {
             settingsSwapPrevNext.toggle()
             config.swapPrevNext = settingsSwapPrevNext.isChecked
+        }
+    }
+
+    private fun setupAllowFileDeletion() = binding.apply {
+        settingsAllowFileDeletion.isChecked = config.allowFileDeletion
+        settingsAllowFileDeletionHolder.setOnClickListener {
+            settingsAllowFileDeletion.toggle()
+            config.allowFileDeletion = settingsAllowFileDeletion.isChecked
         }
     }
 

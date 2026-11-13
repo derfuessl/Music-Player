@@ -21,7 +21,7 @@ interface SongsDao {
     @Query("SELECT COALESCE(MAX(order_in_playlist), -1) FROM tracks WHERE playlist_id = :id")
     fun lastPlaylistPosition(id: Int): Int
 
-    @Query("SELECT * FROM tracks")
+    @Query("SELECT * FROM tracks WHERE playlist_id = 0")
     fun getAll(): List<Track>
 
     @Query("SELECT * FROM tracks WHERE playlist_id = :playlistId")
@@ -47,6 +47,12 @@ interface SongsDao {
 
     @Query("DELETE FROM tracks WHERE media_store_id = :mediaStoreId")
     fun removeTrack(mediaStoreId: Long)
+
+    @Query("SELECT * FROM tracks WHERE playlist_id > 0 AND NOT EXISTS (SELECT 1 FROM tracks AS source WHERE source.playlist_id = 0 AND source.media_store_id = tracks.media_store_id AND source.path = tracks.path)")
+    fun unmatchedMemberships(): List<Track>
+
+    @Query("DELETE FROM tracks WHERE id IN (:ids)")
+    fun removeRows(ids: List<Long>)
 
     @Query("DELETE FROM tracks WHERE playlist_id = :playlistId")
     fun removePlaylistSongs(playlistId: Int)

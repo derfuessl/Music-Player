@@ -24,11 +24,9 @@ class PlaylistWidgetGridTest {
         assertEquals(0, fit(80, -1))
         assertEquals(12, fit(5000, 5000, true))
     }
-    @Test fun distributesSpareHeightByVisibleCount() {
-        assertEquals(50, PlaylistWidgetGrid.rowHeight(451, 42, 9))
-        assertEquals(63, PlaylistWidgetGrid.rowHeight(451, 42, 1))
-        assertEquals(96, PlaylistWidgetGrid.rowHeight(451, 64, 1))
-        assertEquals(0, PlaylistWidgetGrid.rowHeight(451, 42, 0))
+    @Test fun extraHeightOnlyAddsCompleteRows() {
+        assertEquals(3, fit(280, 255, row = 64))
+        assertEquals(4, fit(280, 256, row = 64))
     }
 
     @Test fun headingAndLargerSystemFontsReduceCapacity() {

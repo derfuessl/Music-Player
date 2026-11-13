@@ -14,6 +14,8 @@ import org.fossify.commons.helpers.isQPlus
 import org.fossify.commons.helpers.isRPlus
 import org.fossify.musicplayer.R
 import org.fossify.musicplayer.extensions.audioHelper
+import org.fossify.musicplayer.extensions.getTracksDB
+import org.fossify.musicplayer.extensions.tracksDAO
 import org.fossify.musicplayer.extensions.config
 import org.fossify.musicplayer.models.*
 import java.io.File
@@ -68,6 +70,7 @@ class SimpleMediaScanner(private val context: Application) {
                 }
 
                 cleanupDatabase()
+                updateAllTracksPlaylist()
                 onScanComplete?.invoke(true)
             } catch (ignored: Exception) {
             } finally {
@@ -182,7 +185,6 @@ class SimpleMediaScanner(private val context: Application) {
             insertArtists(newArtists)
             insertGenres(newGenres)
         }
-        updateAllTracksPlaylist()
     }
 
     private fun updateAllTracksPlaylist() {
@@ -198,8 +200,10 @@ class SimpleMediaScanner(private val context: Application) {
         val tracksRemovedFromAllTracks = config.tracksRemovedFromAllTracksPlaylist.map { it.toLong() }
         val tracksWithPlaylist = newTracks
             .filter { it.mediaStoreId !in tracksRemovedFromAllTracks && it.playListId == 0 && it.path.getParentPath() !in excludedFolders }
-            .onEach { it.playListId = ALL_TRACKS_PLAYLIST_ID }
-        RoomHelper(context).insertTracksWithPlaylist(tracksWithPlaylist as ArrayList<Track>)
+            .map { it.copy(id = 0, playListId = ALL_TRACKS_PLAYLIST_ID) }
+        // Keep the row and its manual position when an existing track is rediscovered.
+        context.tracksDAO.insertMemberships(tracksWithPlaylist)
+        org.greenrobot.eventbus.EventBus.getDefault().post(Events.PlaylistsUpdated())
     }
 
     private fun getTracksSync(): ArrayList<Track> {
@@ -571,12 +575,25 @@ class SimpleMediaScanner(private val context: Application) {
     }
 
     private fun cleanupDatabase() {
-        // remove invalid tracks
-        val newTrackIds = newTracks.map { it.mediaStoreId } as ArrayList<Long>
-        val newTrackPaths = newTracks.map { it.path } as ArrayList<String>
-        val invalidTracks = context.audioHelper.getAllTracks().filter { it.mediaStoreId !in newTrackIds || it.path !in newTrackPaths }
-        context.audioHelper.deleteTracks(invalidTracks)
-        newTracks.removeAll(invalidTracks.toSet())
+        // A scan describes reachable sources. Playlist memberships belong to the user.
+        val byPath = newTracks.associateBy { it.path }
+        val byId = newTracks.associateBy { it.mediaStoreId }
+        val dao = context.tracksDAO
+        context.getTracksDB().runInTransaction {
+            val stale = dao.getTracksFromPlaylist(0).filter { byId[it.mediaStoreId]?.path != it.path }
+            stale.map { it.id }.chunked(900).forEach(dao::removeRows)
+            val replacements = dao.unmatchedMemberships().mapNotNull { saved ->
+                val source = byPath[saved.path]
+                when {
+                    source != null -> source.copy(id = saved.id, playListId = saved.playListId, orderInPlaylist = saved.orderInPlaylist)
+                    saved.mediaStoreId >= Int.MIN_VALUE -> saved.copy(mediaStoreId = Long.MIN_VALUE + saved.id)
+                    else -> null
+                }
+            }
+            // Vacate old keys together, including when two MediaStore IDs swap after remount.
+            replacements.map { it.id }.chunked(900).forEach(dao::removeRows)
+            dao.insertMemberships(replacements)
+        }
 
         // remove invalid albums
         val newAlbumIds = newAlbums.map { it.id }

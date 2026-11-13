@@ -79,9 +79,12 @@ internal fun PlaybackService.getMediaSessionCallback() = object : MediaLibrarySe
             ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
 
         when (command) {
-            CustomCommands.GET_STOP_DANCE_STATE -> {
+            CustomCommands.DANCE_PREVIOUS, CustomCommands.DANCE_NEXT, CustomCommands.GET_STOP_DANCE_STATE -> {
                 val result = SettableFuture.create<SessionResult>()
-                withPlayer { result.set(SessionResult(SessionResult.RESULT_SUCCESS, stopDance.stateExtras())) }
+                withPlayer {
+                    if (command != CustomCommands.GET_STOP_DANCE_STATE) stopDance.changeTrack(command == CustomCommands.DANCE_NEXT)
+                    result.set(SessionResult(SessionResult.RESULT_SUCCESS, stopDance.stateExtras()))
+                }
                 return result
             }
             CustomCommands.CLOSE_PLAYER -> stopService()
