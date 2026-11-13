@@ -1,3 +1,5 @@
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@id/widget_playlist_picture" android:layout_width="match_parent"
-    android:layout_height="wrap_content" android:adjustViewBounds="true" android:scaleType="fitCenter" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@id/widget_playlist_cell" android:layout_width="match_parent" android:layout_height="wrap_content">
+    <ImageView android:id="@id/widget_playlist_picture" android:layout_width="28dp" android:layout_height="28dp"
+        android:layout_gravity="center" android:scaleType="fitCenter" />
+</FrameLayout>

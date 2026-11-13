@@ -35,10 +35,10 @@ internal class PlaylistWidgetSize(private val context: Context, private val tile
         val height = (size.height * density).roundToInt() - if (heading) headingHeight else 0
         // A single icon uses the full compact cell, even when two lines of text cannot fit.
         val iconSize = minOf(width, height)
-        if (tiled && (width < tileWidth || height < cellHeight) && iconSize >= (24 * density).roundToInt()) {
+        if (tiled && (width < tileWidth || height < cellHeight) && iconSize >= (28 * density).roundToInt()) {
             return PlaylistWidgetGrid(1, 1, iconSize = iconSize)
         }
-        return PlaylistWidgetGrid.fit(width, height, tileWidth, cellHeight, tiled).copy(availableHeight = height, minRowHeight = cellHeight)
+        return PlaylistWidgetGrid.fit(width, height, tileWidth, cellHeight, tiled)
     }
 
     fun exact(options: Bundle): List<SizeF> = if (Build.VERSION.SDK_INT >= 31) {
